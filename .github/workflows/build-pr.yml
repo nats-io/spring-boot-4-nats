@@ -39,11 +39,25 @@ jobs:
         with:
           java-version: 17
       - name: Build and Install Parent Pom
-        run: mvn --no-transfer-progress --settings ./settings.xml -N clean install
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            mvn --no-transfer-progress --settings ./settings.xml -N clean install -Dgpg.skip=true
+          else
+            mvn --no-transfer-progress --settings ./settings.xml -N clean install
+          fi
       - name: Build and Install Samples
         run: |
           cd nats-spring-samples
-          mvn --no-transfer-progress --settings ../settings.xml -N clean install
+          if [ "${{ github.event_name }}" == "pull_request" ];
+            mvn --no-transfer-progress --settings ../settings.xml -N clean install -Dgpg.skip=true
+          else
+            mvn --no-transfer-progress --settings ../settings.xml -N clean install
+          fi
           cd ..
       - name: Compile and Test
-        run: mvn --no-transfer-progress --settings ./settings.xml clean clean compile test
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            mvn --no-transfer-progress --settings ./settings.xml clean clean compile test -Dgpg.skip=true
+          else
+            mvn --no-transfer-progress --settings ./settings.xml clean clean compile test
+          fi
