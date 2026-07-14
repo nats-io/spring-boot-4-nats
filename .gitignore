@@ -1,5 +1,3 @@
-.idea
-
 # NATS stuff #
 ##############
 gnatsd.log
@@ -38,6 +36,7 @@ Thumbs.db
 
 # Editor Files #
 ################
+.idea
 *~
 *.swp
 .sts4-cache/*
