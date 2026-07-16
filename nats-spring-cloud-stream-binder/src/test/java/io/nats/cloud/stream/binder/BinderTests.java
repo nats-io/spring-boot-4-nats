@@ -812,8 +812,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
-                    fixture.binder().setApplicationContext(context.getSourceApplicationContext());
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String theMessage = "hello world";
                     String out = "out";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(out, null);
@@ -850,8 +849,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
-                    fixture.binder().setApplicationContext(context.getSourceApplicationContext());
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String subject = "handler.headers.issue65";
                     String payload = "headers survive publish";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(subject, null);
@@ -890,8 +888,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
-                    fixture.binder().setApplicationContext(context.getSourceApplicationContext());
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String subject = "handler.headers.skipped";
                     String payload = "only payload";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(subject, null);
@@ -2345,8 +2342,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
-                    fixture.binder().setApplicationContext(context.getSourceApplicationContext());
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String stream = uniqueNatsName("JS_REPLY");
                     String subject = uniqueSubject("jetstream.reply.issue52");
                     addMemoryStream(conn, stream, subject);
@@ -2375,8 +2371,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
-                    fixture.binder().setApplicationContext(context.getSourceApplicationContext());
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String stream = uniqueNatsName("JS_MISSING_PUBLISH");
                     String subject = uniqueSubject("jetstream.missing.publish.issue52");
                     ExtendedProducerProperties<NatsProducerProperties> producerProperties =
@@ -2719,8 +2714,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
-                    fixture.binder().setApplicationContext(context.getSourceApplicationContext());
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String request = "hello request";
                     String reply = "hello reply";
                     String req2rep = "req2rep";
@@ -2950,7 +2944,7 @@ class BinderTests {
         assertThat(binder).isNotNull();
         assertThat(binder.getConnection()).isNotNull();
         assertThat(binder.getConnection().getStatus()).isSameAs(Connection.Status.CONNECTED);
-        return new BinderFixture(provisioner, binder);
+        return new BinderFixture(provisioner, binder, context);
     }
 
     private static void assertConnected(Connection connection, String expectedUrl) {
@@ -3009,7 +3003,18 @@ class BinderTests {
         }
     }
 
-    private record BinderFixture(NatsChannelProvisioner provisioner, NatsChannelBinder binder) implements AutoCloseable {
+    private record BinderFixture(NatsChannelProvisioner provisioner, NatsChannelBinder binder, ConfigurableApplicationContext context) implements AutoCloseable {
+
+        public BinderFixture {
+            if (context != null) {
+                binder.setApplicationContext(context);
+            }
+        }
+
+        public BinderFixture(NatsChannelProvisioner provisioner, NatsChannelBinder binder) {
+            this(provisioner, binder, null);
+        }
+
         private Connection connection() {
             return this.binder.getConnection();
         }
