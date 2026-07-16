@@ -41,12 +41,12 @@ public class PollingSample {
     }
 
     @Bean
-    public ApplicationRunner runner(PollableMessageSource input,
+    public ApplicationRunner runner(PollableMessageSource nats,
                                     @Qualifier("errorChannel") MessageChannel output) {
         return args -> {
             exec.execute(() -> {
                 while (true) {
-                    input.poll(message -> {
+                    nats.poll(message -> {
                         byte[] bytes = (byte[]) message.getPayload();
                         String val = new String(bytes, StandardCharsets.UTF_8);
                         logger.info("received message " + val);
