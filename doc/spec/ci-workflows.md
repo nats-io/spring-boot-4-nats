@@ -182,8 +182,8 @@ Current release assets:
 
 - parent POM
 - starter POM
-- core JAR, sources JAR, javadoc JAR, POM
-- binder JAR, sources JAR, javadoc JAR, POM
+- core JAR, sources JAR, javadoc JAR
+- binder JAR, sources JAR, javadoc JAR
 
 This exercises the real GitHub-side behavior while keeping Maven Central clean:
 

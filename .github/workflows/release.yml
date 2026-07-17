@@ -103,13 +103,13 @@ jobs:
       contents: write
     steps:
       - name: "🧑‍💻 Checkout [${{ needs.build.outputs.commit_sha }}]"
-        uses: actions/checkout@v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
           ref: ${{ needs.build.outputs.commit_sha }}
 
       - name: "📥 Download Build Artifact"
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: build-workspace
           path: ${{ github.workspace }}
@@ -128,9 +128,7 @@ jobs:
           mkdir -p "${assets_dir}"
 
           cp pom.xml "${assets_dir}/spring-boot-4-nats-parent-${RELEASE_VERSION}.pom"
-          cp nats-spring/pom.xml "${assets_dir}/spring-boot-4-nats-${RELEASE_VERSION}.pom"
           cp nats-spring-boot-starter/pom.xml "${assets_dir}/spring-boot-4-starter-nats-${RELEASE_VERSION}.pom"
-          cp nats-spring-cloud-stream-binder/pom.xml "${assets_dir}/spring-boot-4-nats-cloud-stream-binder-${RELEASE_VERSION}.pom"
 
           cp nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}.jar "${assets_dir}/"
           cp nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}-sources.jar "${assets_dir}/"
