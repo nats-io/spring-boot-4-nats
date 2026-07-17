@@ -22,7 +22,7 @@
         <!-- PROD -->
         <spring-boot.version>4.0.7</spring-boot.version>
         <spring-cloud-stream.version>5.0.2</spring-cloud-stream.version>
-        <nats-spring.version>${revision}</nats-spring.version>
+        <spring-boot-4-nats.version>${revision}</spring-boot-4-nats.version>
         <revision>0.7.0+4.0-SNAPSHOT</revision>
     </properties>
 
@@ -39,13 +39,13 @@
     <dependencies>
         <dependency>
             <groupId>io.nats</groupId>
-            <artifactId>nats-spring-cloud-stream-binder</artifactId>
-            <version>${nats-spring.version}</version>
+            <artifactId>spring-boot-4-nats-cloud-stream-binder</artifactId>
+            <version>${spring-boot-4-nats.version}</version>
         </dependency>
         <dependency>
             <groupId>io.nats</groupId>
-            <artifactId>nats-spring</artifactId>
-            <version>${nats-spring.version}</version>
+            <artifactId>spring-boot-4-nats</artifactId>
+            <version>${spring-boot-4-nats.version}</version>
         </dependency>
 
         <dependency>
