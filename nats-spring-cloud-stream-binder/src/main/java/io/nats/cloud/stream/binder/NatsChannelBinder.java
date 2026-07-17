@@ -29,6 +29,7 @@ import io.nats.cloud.stream.binder.properties.NatsProducerProperties;
 import io.nats.spring.boot.autoconfigure.NatsProperties;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.cloud.stream.binder.AbstractMessageChannelBinder;
 import org.springframework.cloud.stream.binder.BinderSpecificPropertiesProvider;
 import org.springframework.cloud.stream.binder.EmbeddedHeaderUtils;
@@ -153,8 +154,13 @@ public class NatsChannelBinder extends
                                                           ExtendedProducerProperties<NatsProducerProperties> producerProperties, MessageChannel errorChannel) {
         NatsProducerProperties extension = producerExtension(producerProperties);
         NatsJetStreamSupport.provisionStream(this.connection, destination.getName(), extension);
-        return new NatsMessageHandler(destination.getName(), this.connection, shouldUseNativeHeaders(producerProperties),
+        NatsMessageHandler natsMessageHandler = new NatsMessageHandler(destination.getName(), this.connection, shouldUseNativeHeaders(producerProperties),
                 isJetStream(extension), streamName(extension));
+        ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+        if (beanFactory != null) {
+            natsMessageHandler.setBeanFactory(beanFactory);
+        }
+        return natsMessageHandler;
     }
 
     @Override

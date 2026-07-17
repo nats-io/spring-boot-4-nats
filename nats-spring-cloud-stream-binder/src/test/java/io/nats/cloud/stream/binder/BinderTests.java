@@ -63,6 +63,7 @@ import org.springframework.cloud.stream.binder.MessageValues;
 import org.springframework.cloud.stream.binder.RequeueCurrentMessageException;
 import org.springframework.cloud.stream.provisioning.ConsumerDestination;
 import org.springframework.cloud.stream.provisioning.ProducerDestination;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.integration.acks.AcknowledgmentCallback;
@@ -114,7 +115,7 @@ class BinderTests {
     void createBinderFromGlobalProperties() throws IOException, InterruptedException {
         try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
             this.contextRunner.run(context -> {
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     assertConnected(fixture.connection(), ts.getURI());
                     assertDefaultListenersCanHandleCallbacks(fixture.connection());
                     assertThat(fixture.binder().getDefaultsPrefix()).isEqualTo("nats.spring.cloud.stream.default");
@@ -811,7 +812,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String theMessage = "hello world";
                     String out = "out";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(out, null);
@@ -848,7 +849,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String subject = "handler.headers.issue65";
                     String payload = "headers survive publish";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(subject, null);
@@ -887,7 +888,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String subject = "handler.headers.skipped";
                     String payload = "only payload";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(subject, null);
@@ -2341,7 +2342,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String stream = uniqueNatsName("JS_REPLY");
                     String subject = uniqueSubject("jetstream.reply.issue52");
                     addMemoryStream(conn, stream, subject);
@@ -2370,7 +2371,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String stream = uniqueNatsName("JS_MISSING_PUBLISH");
                     String subject = uniqueSubject("jetstream.missing.publish.issue52");
                     ExtendedProducerProperties<NatsProducerProperties> producerProperties =
@@ -2713,7 +2714,7 @@ class BinderTests {
                 Connection conn = context.getBean(Connection.class);
                 assertConnected(conn, ts.getURI());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
                     String request = "hello request";
                     String reply = "hello reply";
                     String req2rep = "req2rep";
@@ -2872,6 +2873,14 @@ class BinderTests {
         return newGlobalBinder(server, new String[0]);
     }
 
+    private static BinderFixture newGlobalBinder(String server, ConfigurableApplicationContext context) throws IOException, InterruptedException {
+        NatsProperties natsProperties = new NatsProperties();
+        natsProperties.setServer(server);
+        NatsBinderConfigurationProperties binderProperties = new NatsBinderConfigurationProperties();
+        binderProperties.setHeadersToEmbed(new String[0]);
+        return newBinder(natsProperties, binderProperties, context);
+    }
+
     private static BinderFixture newGlobalBinder(String server, String... headersToEmbed) throws IOException, InterruptedException {
         NatsProperties natsProperties = new NatsProperties();
         natsProperties.setServer(server);
@@ -2915,6 +2924,27 @@ class BinderTests {
         assertThat(binder.getConnection()).isNotNull();
         assertThat(binder.getConnection().getStatus()).isSameAs(Connection.Status.CONNECTED);
         return new BinderFixture(provisioner, binder);
+    }
+
+    private static BinderFixture newBinder(NatsProperties natsProperties,
+                                           NatsBinderConfigurationProperties binderProperties,
+                                           ConfigurableApplicationContext context)
+            throws IOException, InterruptedException {
+        NatsExtendedBindingProperties props = new NatsExtendedBindingProperties();
+        props.setApplicationContext(context);
+        NatsChannelBinderConfiguration config = new NatsChannelBinderConfiguration(
+                null,
+                null,
+                natsProperties,
+                binderProperties,
+                props);
+        NatsChannelProvisioner provisioner = config.natsChannelProvisioner();
+
+        NatsChannelBinder binder = config.natsBinder(provisioner);
+        assertThat(binder).isNotNull();
+        assertThat(binder.getConnection()).isNotNull();
+        assertThat(binder.getConnection().getStatus()).isSameAs(Connection.Status.CONNECTED);
+        return new BinderFixture(provisioner, binder, context);
     }
 
     private static void assertConnected(Connection connection, String expectedUrl) {
@@ -2973,7 +3003,18 @@ class BinderTests {
         }
     }
 
-    private record BinderFixture(NatsChannelProvisioner provisioner, NatsChannelBinder binder) implements AutoCloseable {
+    private record BinderFixture(NatsChannelProvisioner provisioner, NatsChannelBinder binder, ConfigurableApplicationContext context) implements AutoCloseable {
+
+        public BinderFixture {
+            if (context != null) {
+                binder.setApplicationContext(context);
+            }
+        }
+
+        public BinderFixture(NatsChannelProvisioner provisioner, NatsChannelBinder binder) {
+            this(provisioner, binder, null);
+        }
+
         private Connection connection() {
             return this.binder.getConnection();
         }

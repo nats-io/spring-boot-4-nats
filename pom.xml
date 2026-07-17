@@ -5,26 +5,32 @@
 
     <artifactId>nats-spring-parent</artifactId>
     <groupId>io.nats</groupId>
-        <version>0.6.3+3.5-SNAPSHOT</version>
+    <version>${revision}</version>
     <packaging>pom</packaging>
 
     <parent>
         <groupId>org.springframework.cloud</groupId>
         <artifactId>spring-cloud-build</artifactId>
-        <version>3.1.8</version>
+        <version>5.0.2</version>
         <relativePath/>
     </parent>
 
     <properties>
-        <spring-boot.version>3.5.14</spring-boot.version>
-        <spring-cloud-stream.version>4.2.1</spring-cloud-stream.version>
+        <!-- BUILD -->
+        <revision>0.7.0+4.0-SNAPSHOT</revision>
         <java.version>17</java.version>
         <jacoco.version>0.8.13</jacoco.version>
-        <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.release>17</maven.compiler.release>
-        <!-- Unique entry point for version number management -->
-        <revision>0.6.0</revision>
+
+        <!-- TEST -->
+        <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
+
+        <!-- PROD -->
+        <spring-boot.version>4.0.7</spring-boot.version>
+        <spring-cloud-stream.version>5.0.2</spring-cloud-stream.version>
+        <jnats.version>2.21.1</jnats.version>
+
     </properties>
 
     <modules>
@@ -47,6 +53,22 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>io.nats</groupId>
+                <artifactId>jnats</artifactId>
+                <version>${jnats.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.nats</groupId>
+                <artifactId>nats-spring</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.nats</groupId>
+                <artifactId>nats-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>io.nats</groupId>
                 <artifactId>nats-spring-cloud-stream-binder</artifactId>
