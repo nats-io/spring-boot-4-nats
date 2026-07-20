@@ -1,4 +1,4 @@
-name: Release Snapshot
+name: 🔄 CD · Release Snapshot
 
 on:
   push:
