@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>nats-spring-parent</artifactId>
+    <artifactId>spring-boot-4-nats-parent</artifactId>
     <groupId>io.nats</groupId>
     <version>${revision}</version>
     <packaging>pom</packaging>
@@ -19,18 +19,22 @@
         <!-- BUILD -->
         <revision>0.7.0+4.0-SNAPSHOT</revision>
         <java.version>17</java.version>
-        <jacoco.version>0.8.13</jacoco.version>
-        <maven.compiler.source>17</maven.compiler.source>
+        <maven.javadoc.skip>true</maven.javadoc.skip>
         <maven.compiler.release>17</maven.compiler.release>
+        <maven.compiler.source>17</maven.compiler.source>
+        <git-commit-id-maven-plugin.version>9.2.0</git-commit-id-maven-plugin.version>
+        <maven-gpg-plugin.version>3.2.7</maven-gpg-plugin.version>
+        <project.build.outputTimestamp>${git.commit.time}</project.build.outputTimestamp>
 
         <!-- TEST -->
+        <jacoco.version>0.8.13</jacoco.version>
         <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
 
         <!-- PROD -->
         <spring-boot.version>4.0.7</spring-boot.version>
         <spring-cloud-stream.version>5.0.2</spring-cloud-stream.version>
         <jnats.version>2.21.1</jnats.version>
-
+        <central-publishing-maven-plugin.version>0.11.0</central-publishing-maven-plugin.version>
     </properties>
 
     <modules>
@@ -60,18 +64,17 @@
             </dependency>
             <dependency>
                 <groupId>io.nats</groupId>
-                <artifactId>nats-spring</artifactId>
+                <artifactId>spring-boot-4-nats</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.nats</groupId>
-                <artifactId>nats-spring-boot-starter</artifactId>
+                <artifactId>spring-boot-4-starter-nats</artifactId>
                 <version>${project.version}</version>
             </dependency>
-
             <dependency>
                 <groupId>io.nats</groupId>
-                <artifactId>nats-spring-cloud-stream-binder</artifactId>
+                <artifactId>spring-boot-4-nats-cloud-stream-binder</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -125,48 +128,34 @@
     </dependencyManagement>
 
     <build>
-        <pluginManagement>
-            <plugins>
-<!--                <plugin>-->
-<!--                    <groupId>org.apache.maven.plugins</groupId>-->
-<!--                    <artifactId>maven-gpg-plugin</artifactId>-->
-<!--                    <version>3.2.7</version>-->
-<!--                </plugin>-->
-<!--                <plugin>-->
-<!--                    <groupId>org.simplify4u.plugins</groupId>-->
-<!--                    <artifactId>sign-maven-plugin</artifactId>-->
-<!--                    <version>1.1.0</version>-->
-<!--                </plugin>-->
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-antrun-plugin</artifactId>
-                    <version>1.7</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-javadoc-plugin</artifactId>
-                    <configuration>
-                        <quiet>true</quiet>
-                    </configuration>
-                </plugin>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>${maven-surefire-plugin.version}</version>
-                    <configuration>
-                        <redirectTestOutputToFile>true</redirectTestOutputToFile>
-                        <properties>
-                            <configurationParameters>
-                                junit.jupiter.execution.parallel.enabled = true
-                                junit.jupiter.execution.parallel.mode.default = concurrent
-                                junit.jupiter.execution.parallel.mode.classes.default = concurrent
-                            </configurationParameters>
-                        </properties>
-                    </configuration>
-                </plugin>
-            </plugins>
-        </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>${git-commit-id-maven-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>git-commit-time</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <skipPoms>false</skipPoms>
+                    <runOnlyOnce>true</runOnlyOnce>
+                    <injectAllReactorProjects>true</injectAllReactorProjects>
+                    <generateGitPropertiesFile>false</generateGitPropertiesFile>
+                    <dateFormat>yyyy-MM-dd'T'HH:mm:ss'Z'</dateFormat>
+                    <dateFormatTimeZone>UTC</dateFormatTimeZone>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>^git.commit.time$</includeOnlyProperty>
+                    </includeOnlyProperties>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -176,6 +165,47 @@
                     <target>${java.version}</target>
                     <compilerArgument>-parameters</compilerArgument>
                     <forceJavacCompilerUse>true</forceJavacCompilerUse>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                    <properties>
+                        <configurationParameters>
+                            junit.jupiter.execution.parallel.enabled = true
+                            junit.jupiter.execution.parallel.mode.default = concurrent
+                            junit.jupiter.execution.parallel.mode.classes.default = concurrent
+                        </configurationParameters>
+                    </properties>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>aggregate</id>
+                        <phase>site</phase>
+                        <goals>
+                            <goal>aggregate</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>javadoc</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration combine.self="override">
+                    <source>${java.version}</source>
+                    <doclint>none</doclint>
+                    <failOnError>false</failOnError>
+                    <skip>${maven.javadoc.skip}</skip>
                 </configuration>
             </plugin>
             <plugin>
@@ -198,109 +228,47 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-gpg-plugin</artifactId>
-                <version>3.2.7</version>
-                <executions>
-                    <execution>
-                        <id>sign-artifacts</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>sign</goal>
-                        </goals>
-                        <configuration>
-                            <signer>bc</signer>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-<!--            <plugin>-->
-<!--                <groupId>org.simplify4u.plugins</groupId>-->
-<!--                <artifactId>sign-maven-plugin</artifactId>-->
-<!--                <version>1.1.0</version>-->
-<!--                <executions>-->
-<!--                    <execution>-->
-<!--                        <goals>-->
-<!--                            <goal>sign</goal>-->
-<!--                        </goals>-->
-<!--                    </execution>-->
-<!--                </executions>-->
-<!--            </plugin>-->
-            <plugin>
-                <groupId>org.sonatype.central</groupId>
-                <artifactId>central-publishing-maven-plugin</artifactId>
-                <version>0.7.0</version>
-                <extensions>true</extensions>
-                <configuration>
-                    <publishingServerId>central</publishingServerId>
-                    <autoPublish>true</autoPublish>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
     <profiles>
         <profile>
-            <id>spring</id>
-            <repositories>
-                <repository>
-                    <id>spring-snapshots</id>
-                    <name>Spring Snapshots</name>
-                    <url>https://repo.spring.io/libs-snapshot-local</url>
-                    <snapshots>
-                        <enabled>true</enabled>
-                    </snapshots>
-                    <releases>
-                        <enabled>false</enabled>
-                    </releases>
-                </repository>
-                <repository>
-                    <id>spring-milestones</id>
-                    <name>Spring Milestones</name>
-                    <url>https://repo.spring.io/libs-milestone-local</url>
-                    <snapshots>
-                        <enabled>false</enabled>
-                    </snapshots>
-                </repository>
-                <repository>
-                    <id>spring-releases</id>
-                    <name>Spring Releases</name>
-                    <url>https://repo.spring.io/release</url>
-                    <snapshots>
-                        <enabled>false</enabled>
-                    </snapshots>
-                </repository>
-            </repositories>
-            <pluginRepositories>
-                <pluginRepository>
-                    <id>spring-snapshots</id>
-                    <name>Spring Snapshots</name>
-                    <url>https://repo.spring.io/libs-snapshot-local</url>
-                    <snapshots>
-                        <enabled>true</enabled>
-                    </snapshots>
-                    <releases>
-                        <enabled>false</enabled>
-                    </releases>
-                </pluginRepository>
-                <pluginRepository>
-                    <id>spring-milestones</id>
-                    <name>Spring Milestones</name>
-                    <url>https://repo.spring.io/libs-milestone-local</url>
-                    <snapshots>
-                        <enabled>false</enabled>
-                    </snapshots>
-                </pluginRepository>
-                <pluginRepository>
-                    <id>spring-releases</id>
-                    <name>Spring Releases</name>
-                    <url>https://repo.spring.io/libs-release-local</url>
-                    <snapshots>
-                        <enabled>false</enabled>
-                    </snapshots>
-                </pluginRepository>
-            </pluginRepositories>
+            <id>publish</id>
+            <properties>
+                <maven.javadoc.skip>false</maven.javadoc.skip>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-gpg-plugin</artifactId>
+                        <version>${maven-gpg-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>sign-artifacts</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>sign</goal>
+                                </goals>
+                                <configuration>
+                                    <signer>bc</signer>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>${central-publishing-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>

@@ -9,7 +9,7 @@
 
     <parent>
         <groupId>io.nats</groupId>
-        <artifactId>nats-spring-parent</artifactId>
+        <artifactId>spring-boot-4-nats-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
@@ -24,7 +24,6 @@
         <module>autoconfigure-sample</module>
         <module>connect-error-sample</module>
     </modules>
-
     <build>
         <plugins>
             <plugin>

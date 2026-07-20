@@ -22,7 +22,7 @@
     <dependencies>
         <dependency>
             <groupId>io.nats</groupId>
-            <artifactId>nats-spring-cloud-stream-binder</artifactId>
+            <artifactId>spring-boot-4-nats-cloud-stream-binder</artifactId>
         </dependency>
     </dependencies>
 

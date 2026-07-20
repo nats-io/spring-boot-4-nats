@@ -3,7 +3,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <artifactId>nats-spring</artifactId>
+    <artifactId>spring-boot-4-nats</artifactId>
     <description>NATS Implementation for Spring</description>
     <organization>
         <name>CNCF</name>
@@ -12,7 +12,7 @@
 
     <parent>
         <groupId>io.nats</groupId>
-        <artifactId>nats-spring-parent</artifactId>
+        <artifactId>spring-boot-4-nats-parent</artifactId>
         <version>${revision}</version>
         <relativePath>../pom.xml</relativePath>
     </parent>

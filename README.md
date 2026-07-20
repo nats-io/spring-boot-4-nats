@@ -25,12 +25,13 @@ Please note the version number is a combination of Semver and the Spring Boot Ve
 * [External Resources](#resources)
 * [License](#license)
 
-This repository contains two core packages:
+This repository contains three published artifacts:
 
-* `nats-spring` an implementation of the autoconfigure pattern for a NATS connection using the core [NATS Java Client](https://github.com/nats-io/nats.java)
-* `nats-spring-cloud-stream-binder` a spring cloud binder for NATS
+* `spring-boot-4-nats` an implementation of the autoconfigure pattern for a NATS connection using the core [NATS Java Client](https://github.com/nats-io/nats.java)
+* `spring-boot-4-starter-nats` a Spring Boot starter POM for the autoconfigure module
+* `spring-boot-4-nats-cloud-stream-binder` a Spring Cloud Stream binder for NATS
 
-A third package `nats-spring-samples` is included to <a href="#samples">demonstrate</a> how the other two modules can be used.
+The `nats-spring-samples` module is included to <a href="#samples">demonstrate</a> how those artifacts can be used.
 
 ## Version Notes
 
@@ -91,7 +92,7 @@ To include the starter, add the following dependency to your pom.xml:
 ```xml
 <dependency>
     <groupId>io.nats</groupId>
-    <artifactId>nats-spring-boot-starter</artifactId>
+    <artifactId>spring-boot-4-starter-nats</artifactId>
     <version>major.minor.patch[-SNAPSHOT]</version>
 </dependency>
 ```
@@ -108,7 +109,7 @@ To depend on the autoconfigure module, add it as a dependency in your pom.xml:
 </dependency>
 <dependency>
     <groupId>io.nats</groupId>
-    <artifactId>nats-spring</artifactId>
+    <artifactId>spring-boot-4-nats</artifactId>
     <version>major.minor.patch[-SNAPSHOT]</version>
 </dependency>
 ```
@@ -143,7 +144,7 @@ and include a dependency on the library:
 ```xml
 <dependency>
     <groupId>io.nats</groupId>
-    <artifactId>nats-spring-cloud-stream-binder</artifactId>
+    <artifactId>spring-boot-4-nats-cloud-stream-binder</artifactId>
     <version>major.minor.patch[-SNAPSHOT]</version>
 </dependency>
 ```
