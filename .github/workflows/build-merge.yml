@@ -1,4 +1,4 @@
-name: Build Main
+name: Release Snapshot
 
 on:
   push:
@@ -38,7 +38,7 @@ jobs:
             main|master)
               ;;
             *)
-              echo "Build Main workflow_dispatch must run from main or master, got: ${GITHUB_REF_NAME}" >&2
+              echo "Release Snapshot workflow_dispatch must run from main or master, got: ${GITHUB_REF_NAME}" >&2
               exit 1
               ;;
           esac
