@@ -101,7 +101,7 @@ class AutoconfigureTests {
     }
 
     @Test
-    void connectionCanUseTokenAuthWithRealServer() throws IOException, InterruptedException {
+    void connectionCanUseTokenAuthWithRealServer() throws IOException   , InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(new String[]{"--auth", "secret"}, false)) {
             this.contextRunner.withPropertyValues(
                     "nats.spring.server=" + ts.getURI(),
@@ -261,6 +261,17 @@ class AutoconfigureTests {
             assertThat(context).hasFailed();
             assertThat(context.getStartupFailure()).hasRootCauseInstanceOf(IOException.class);
         });
+    }
+
+    @Test
+    void springContextDoesNotCreateConnectionWithoutServerProperties() {
+        this.contextRunner.run(context -> assertThat(context).doesNotHaveBean(Connection.class));
+    }
+
+    @Test
+    void springContextDoesNotCreateConnectionWithBlankServerProperty() {
+        this.contextRunner.withPropertyValues("nats.spring.server= ").run(context ->
+                assertThat(context).doesNotHaveBean(Connection.class));
     }
 
     private static Set<Path> tempNatsConfigs() throws IOException {

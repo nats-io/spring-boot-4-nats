@@ -581,6 +581,42 @@ public class PropertiesTests {
                 .contains("user=**********", "password=**********", "token=**********", "creds=**********", "nkey=**********");
     }
 
+    @Test
+    public void requiredSetterValuesRejectNull() {
+        NatsConnectionProperties props = new NatsConnectionProperties();
+
+        assertThatThrownBy(() -> props.setReconnectWait(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("reconnectWait must not be null");
+        assertThatThrownBy(() -> props.setConnectionTimeout(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("connectionTimeout must not be null");
+        assertThatThrownBy(() -> props.setPingInterval(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("pingInterval must not be null");
+        assertThatThrownBy(() -> props.setInboxPrefix(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("inboxPrefix must not be null");
+    }
+
+    @Test
+    public void requiredFluentValuesRejectNull() {
+        NatsConnectionProperties props = new NatsConnectionProperties();
+
+        assertThatThrownBy(() -> props.reconnectWait(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("reconnectWait must not be null");
+        assertThatThrownBy(() -> props.connectionTimeout(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("connectionTimeout must not be null");
+        assertThatThrownBy(() -> props.pingInterval(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("pingInterval must not be null");
+        assertThatThrownBy(() -> props.inboxPrefix(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("inboxPrefix must not be null");
+    }
+
     private Path emptyPkcs12Store(String name) throws Exception {
         return pkcs12Store(name, new char[0]);
     }
