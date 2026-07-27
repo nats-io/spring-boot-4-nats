@@ -22,6 +22,7 @@ import io.nats.cloud.stream.binder.properties.NatsBinderConfigurationProperties;
 import io.nats.cloud.stream.binder.properties.NatsExtendedBindingProperties;
 import io.nats.spring.boot.autoconfigure.NatsAutoConfiguration;
 import io.nats.spring.boot.autoconfigure.NatsProperties;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName;
@@ -29,7 +30,6 @@ import org.springframework.cloud.stream.config.BindingHandlerAdvise.MappingsProv
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
-import org.springframework.lang.Nullable;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -44,12 +44,12 @@ public class NatsChannelBinderConfiguration {
     /**
      * A custom connection listener, otherwise a simple logging default is used.
      */
-    private final ConnectionListener connectionListener;
+    private final @Nullable ConnectionListener connectionListener;
 
     /**
      * A custom error listener, otherwise a simple logging default is used.
      */
-    private final ErrorListener errorListener;
+    private final @Nullable ErrorListener errorListener;
 
     /**
      * The NatsProperties configured to define this binders NATS connections. These are configured globally.
@@ -108,7 +108,7 @@ public class NatsChannelBinderConfiguration {
     /**
      * @return binder, based on the channel provisioner, using the properties associated with this configuration
      */
-    public NatsChannelBinder natsBinder(NatsChannelProvisioner natsProvisioner) throws IOException, InterruptedException {
+    public @Nullable NatsChannelBinder natsBinder(NatsChannelProvisioner natsProvisioner) throws IOException, InterruptedException {
         NatsChannelBinder binder = new NatsChannelBinder(this.natsExtendedBindingProperties,
                 this.natsBinderConfigurationProperties,
                 this.natsProperties, natsProvisioner,

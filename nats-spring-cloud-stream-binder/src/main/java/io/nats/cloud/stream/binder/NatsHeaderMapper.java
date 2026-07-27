@@ -20,6 +20,7 @@ import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.springframework.cloud.stream.binder.BinderHeaders;
 import org.springframework.integration.IntegrationMessageHeaderAccessor;
 import org.springframework.messaging.MessageHeaders;
@@ -48,7 +49,7 @@ class NatsHeaderMapper {
     private NatsHeaderMapper() {
     }
 
-    static Headers fromSpringHeaders(MessageHeaders springHeaders) {
+    static @Nullable Headers fromSpringHeaders(MessageHeaders springHeaders) {
         Headers natsHeaders = new Headers();
 
         springHeaders.forEach((name, value) -> addHeader(natsHeaders, name, value));
