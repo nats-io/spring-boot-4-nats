@@ -119,6 +119,7 @@ public class NatsMessageSource extends AbstractMessageSource<Object> implements 
 
         try {
             Message m;
+            // NullAway: re-check required — early return above not tracked across branches
             if (this.jetStream && Objects.nonNull(context)) {
                 m = receiveJetStreamMessage(context);
             } else {

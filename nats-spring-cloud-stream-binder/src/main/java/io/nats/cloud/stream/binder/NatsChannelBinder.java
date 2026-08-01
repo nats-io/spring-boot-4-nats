@@ -55,7 +55,6 @@ public class NatsChannelBinder extends
         AbstractMessageChannelBinder<ExtendedConsumerProperties<NatsConsumerProperties>, ExtendedProducerProperties<NatsProducerProperties>, NatsChannelProvisioner>
         implements ExtendedPropertiesBinder<MessageChannel, NatsConsumerProperties, NatsProducerProperties> {
     private static final Log logger = LogFactory.getLog(NatsChannelBinder.class);
-    private static final String CONNECTION_REQUIRE_NON_NULL_ERROR = "connection must not be null";
     private final NatsExtendedBindingProperties bindingProperties;
     private @Nullable NatsBinderConfigurationProperties properties;
     private @Nullable NatsProperties natsProperties;
@@ -157,7 +156,6 @@ public class NatsChannelBinder extends
     protected MessageHandler createProducerMessageHandler(ProducerDestination destination,
                                                           ExtendedProducerProperties<NatsProducerProperties> producerProperties, MessageChannel errorChannel) {
         NatsProducerProperties extension = producerExtension(producerProperties);
-        Objects.requireNonNull(this.connection, CONNECTION_REQUIRE_NON_NULL_ERROR);
         NatsJetStreamSupport.provisionStream(this.connection, destination.getName(), extension);
         NatsMessageHandler natsMessageHandler = new NatsMessageHandler(destination.getName(), this.connection, shouldUseNativeHeaders(producerProperties),
                 isJetStream(extension), streamName(extension));
@@ -171,7 +169,6 @@ public class NatsChannelBinder extends
     @Override
     protected MessageProducer createConsumerEndpoint(ConsumerDestination destination, String group,
                                                      ExtendedConsumerProperties<NatsConsumerProperties> properties) {
-        Objects.requireNonNull(this.connection, CONNECTION_REQUIRE_NON_NULL_ERROR);
         NatsConsumerProperties extension = consumerExtension(properties);
         NatsConsumerDestination consumerDestination = (NatsConsumerDestination) destination;
         return new NatsMessageProducer(
@@ -187,7 +184,6 @@ public class NatsChannelBinder extends
     @Override
     protected PolledConsumerResources createPolledConsumerResources(String name, String group,
                                                                     ConsumerDestination destination, ExtendedConsumerProperties<NatsConsumerProperties> consumerProperties) {
-        Objects.requireNonNull(this.connection, CONNECTION_REQUIRE_NON_NULL_ERROR);
         NatsConsumerProperties extension = consumerExtension(consumerProperties);
         NatsConsumerDestination consumerDestination = (NatsConsumerDestination) destination;
         return new PolledConsumerResources(

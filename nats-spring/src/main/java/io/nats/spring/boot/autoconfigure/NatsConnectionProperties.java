@@ -985,17 +985,17 @@ public class NatsConnectionProperties {
 
         SSLContext sslContext = SSLContext.getInstance(this.tlsProtocol);
 
-        Objects.requireNonNull(this.keyStorePath, "keyStorePath must not be null");
+        String ksPath = Objects.requireNonNull(this.keyStorePath, "keyStorePath must not be null");
         KeyManager[] keyManagers = createKeyManagers(
-                this.keyStorePath,
+                ksPath,
                 this.keyStorePassword,
                 this.keyStoreProvider,
                 this.keyStoreType
         );
 
-        Objects.requireNonNull(this.trustStorePath, "trustStorePath must not be null");
+        String tsPath = Objects.requireNonNull(this.trustStorePath, "trustStorePath must not be null");
         TrustManager[] trustManagers = createTrustManagers(
-                this.trustStorePath,
+                tsPath,
                 this.trustStorePassword,
                 this.trustStoreProvider,
                 this.trustStoreType
