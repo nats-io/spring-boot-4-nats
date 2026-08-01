@@ -112,20 +112,19 @@ public class NatsMessageSource extends AbstractMessageSource<Object> implements 
     protected @Nullable Object doReceive() {
         ConsumerContext context = this.consumerContext.get();
         Subscription subscription = this.sub;
-        if (!this.jetStream && subscription == null) {
-            return null;
-        }
+
         if (this.jetStream && Objects.isNull(context)) {
             return null;
         }
 
         try {
-            Objects.requireNonNull(context, "context must not be null");
-            Objects.requireNonNull(subscription, "subscription must not be null");
             Message m;
-            if (this.jetStream) {
+            if (this.jetStream && Objects.nonNull(context)) {
                 m = receiveJetStreamMessage(context);
             } else {
+                if (subscription == null) {
+                    return null;
+                }
                 m = subscription.nextMessage(Duration.ZERO);
             }
 

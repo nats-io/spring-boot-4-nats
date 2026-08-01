@@ -156,7 +156,6 @@ public class NatsChannelBinder extends
     protected MessageHandler createProducerMessageHandler(ProducerDestination destination,
                                                           ExtendedProducerProperties<NatsProducerProperties> producerProperties, MessageChannel errorChannel) {
         NatsProducerProperties extension = producerExtension(producerProperties);
-        Objects.requireNonNull(extension, "NATS producer properties must bot be null");
         NatsJetStreamSupport.provisionStream(this.connection, destination.getName(), extension);
         Objects.requireNonNull(this.connection, CONNECTION_REQUIRE_NON_NULL_ERROR);
         NatsMessageHandler natsMessageHandler = new NatsMessageHandler(destination.getName(), this.connection, shouldUseNativeHeaders(producerProperties),
@@ -173,7 +172,6 @@ public class NatsChannelBinder extends
                                                      ExtendedConsumerProperties<NatsConsumerProperties> properties) {
         Objects.requireNonNull(this.connection, CONNECTION_REQUIRE_NON_NULL_ERROR);
         NatsConsumerProperties extension = consumerExtension(properties);
-        Objects.requireNonNull(extension, "NATS consumer properties must not be null");
         NatsConsumerDestination consumerDestination = (NatsConsumerDestination) destination;
         return new NatsMessageProducer(
                 consumerDestination,
@@ -190,7 +188,6 @@ public class NatsChannelBinder extends
                                                                     ConsumerDestination destination, ExtendedConsumerProperties<NatsConsumerProperties> consumerProperties) {
         Objects.requireNonNull(this.connection, CONNECTION_REQUIRE_NON_NULL_ERROR);
         NatsConsumerProperties extension = consumerExtension(consumerProperties);
-        Objects.requireNonNull(extension, "NATS consumer properties must not be null");
         NatsConsumerDestination consumerDestination = (NatsConsumerDestination) destination;
         return new PolledConsumerResources(
                 new NatsMessageSource(
@@ -212,24 +209,24 @@ public class NatsChannelBinder extends
         return consumerProperties == null ? null : consumerProperties.getExtension();
     }
 
-    private static boolean isJetStream(NatsProducerProperties properties) {
-        return properties.isJetStream();
+    private static boolean isJetStream(@Nullable NatsProducerProperties properties) {
+        return properties != null && properties.isJetStream();
     }
 
-    private static boolean isJetStream(NatsConsumerProperties properties) {
-        return properties.isJetStream();
+    private static boolean isJetStream(@Nullable NatsConsumerProperties properties) {
+        return properties != null && properties.isJetStream();
     }
 
-    private static String streamName(NatsProducerProperties properties) {
-        return properties.getStreamName();
+    private static @Nullable String streamName(@Nullable NatsProducerProperties properties) {
+        return properties != null ? properties.getStreamName() : null;
     }
 
-    private static String streamName(NatsConsumerProperties properties) {
-        return properties.getStreamName();
+    private static @Nullable String streamName(@Nullable NatsConsumerProperties properties) {
+        return properties != null ? properties.getStreamName() : null;
     }
 
-    private static String consumerName(NatsConsumerProperties properties) {
-        return properties.getConsumerName();
+    private static @Nullable String consumerName(@Nullable NatsConsumerProperties properties) {
+        return properties != null ? properties.getConsumerName() : null;
     }
 
     private static boolean shouldUseNativeHeaders(ExtendedProducerProperties<NatsProducerProperties> producerProperties) {
