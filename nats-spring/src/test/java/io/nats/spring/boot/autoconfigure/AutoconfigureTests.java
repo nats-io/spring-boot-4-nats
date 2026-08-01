@@ -101,7 +101,7 @@ class AutoconfigureTests {
     }
 
     @Test
-    void connectionCanUseTokenAuthWithRealServer() throws IOException   , InterruptedException {
+    void connectionCanUseTokenAuthWithRealServer() throws IOException, InterruptedException {
         try (NatsTestServer ts = new NatsTestServer(new String[]{"--auth", "secret"}, false)) {
             this.contextRunner.withPropertyValues(
                     "nats.spring.server=" + ts.getURI(),

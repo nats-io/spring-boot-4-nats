@@ -769,7 +769,7 @@ public class NatsConnectionProperties {
      * @return chainable properties
      * @throws NullPointerException if {@code inboxPrefix} is {@code null}
      */
-    public NatsConnectionProperties inboxPrefix(@Nullable String inboxPrefix) {
+    public NatsConnectionProperties inboxPrefix(String inboxPrefix) {
         this.inboxPrefix = Objects.requireNonNull(inboxPrefix, "inboxPrefix must not be null");
         return this;
     }

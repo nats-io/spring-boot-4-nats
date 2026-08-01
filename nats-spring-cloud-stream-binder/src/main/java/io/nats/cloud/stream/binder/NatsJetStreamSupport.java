@@ -23,7 +23,9 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.nats.cloud.stream.binder.properties.NatsProducerProperties;
+import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.springframework.lang.Contract;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -43,10 +45,10 @@ class NatsJetStreamSupport {
         if (!hasText(value)) {
             return null;
         }
-        Objects.requireNonNull(value, "value must not be null");
         return value.trim();
     }
 
+    @Contract("null -> false")
     static boolean hasText(@Nullable String value) {
         return value != null && value.trim().length() > 0;
     }
@@ -82,8 +84,6 @@ class NatsJetStreamSupport {
 
         try {
             JetStreamManagement management = connection.jetStreamManagement();
-            Objects.requireNonNull(stream, "stream must not be null");
-            Objects.requireNonNull(streamSubject, "streamSubject must not be null");
             StreamInfo streamInfo = streamInfoOrNull(management, stream);
             if (streamInfo == null) {
                 addStream(management, stream, streamSubject, storageType, streamReplicas);
@@ -168,7 +168,6 @@ class NatsJetStreamSupport {
         if (!hasText(normalizedPattern)) {
             return false;
         }
-        Objects.requireNonNull(normalizedPattern);
         String[] patternTokens = normalizedPattern.split("\\.");
         String[] subjectTokens = subject.split("\\.");
         for (int index = 0; index < patternTokens.length; index++) {

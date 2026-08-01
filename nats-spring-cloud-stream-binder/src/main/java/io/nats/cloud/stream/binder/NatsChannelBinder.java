@@ -80,8 +80,9 @@ public class NatsChannelBinder extends
                              NatsChannelProvisioner provisioningProvider,
                              @Nullable ConnectionListener connectionListener,
                              @Nullable ErrorListener errorListener) {
-        super(headersToEmbed(properties), provisioningProvider);
-        this.bindingProperties = Objects.requireNonNull(bindingProperties, "NATs extended Binder configuration properties must not be null");
+        super(headersToEmbed(properties), Objects.requireNonNull(provisioningProvider,
+                "provisioningProvider must not be null"));
+        this.bindingProperties = Objects.requireNonNull(bindingProperties, "bindingProperties must not be null");
         this.properties = properties;
         this.natsProperties = natsProperties;
 
@@ -156,8 +157,8 @@ public class NatsChannelBinder extends
     protected MessageHandler createProducerMessageHandler(ProducerDestination destination,
                                                           ExtendedProducerProperties<NatsProducerProperties> producerProperties, MessageChannel errorChannel) {
         NatsProducerProperties extension = producerExtension(producerProperties);
-        NatsJetStreamSupport.provisionStream(this.connection, destination.getName(), extension);
         Objects.requireNonNull(this.connection, CONNECTION_REQUIRE_NON_NULL_ERROR);
+        NatsJetStreamSupport.provisionStream(this.connection, destination.getName(), extension);
         NatsMessageHandler natsMessageHandler = new NatsMessageHandler(destination.getName(), this.connection, shouldUseNativeHeaders(producerProperties),
                 isJetStream(extension), streamName(extension));
         ConfigurableListableBeanFactory beanFactory = getBeanFactory();
