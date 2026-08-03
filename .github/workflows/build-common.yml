@@ -79,7 +79,7 @@ jobs:
       build_output_timestamp: ${{ steps.commit_info.outputs.build_output_timestamp }}
     steps:
       - name: "🧑‍💻 Checkout [${{ inputs.ref }}]"
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           ref: ${{ inputs.ref || github.sha }}
@@ -231,7 +231,7 @@ jobs:
           printf 'should_create_release=%s\n' "${should_create_release}" >> "${GITHUB_OUTPUT}"
 
       - name: "☕ Setup Java [${{ steps.java_info.outputs.java_version }}]"
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: ${{ steps.java_info.outputs.java_version }}
@@ -271,7 +271,7 @@ jobs:
           printf 'go_version=%s\n' "${go_version}" >> "${GITHUB_OUTPUT}"
 
       - name: "🐹 Setup Go [${{ steps.go_info.outputs.go_version }}]"
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ steps.go_info.outputs.go_version }}
           cache: false
