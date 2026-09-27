@@ -302,6 +302,8 @@ Listening on [>]
 
 This project is built with maven. The `mvnw` helper is included in the root folder and its implementation is included in the `.mvn` folder. You should be able to compile using `./mvnw clean compile`, or package the jars with `./mvnw clean package`.
 
+Run all tests with `./mvnw clean verify` using Java 17 or newer. The tests use `berlin.yuna:nats-server-junit` to download and start native NATS servers automatically, including on Apple Silicon macOS. Docker and a separately installed NATS server are not required. The first run needs access to GitHub release downloads. Maven test runs cache the binary under `spring-nats-test` in the system temporary directory, separated by the library-selected NATS version and platform.
+
 Internally there are multiple pom files, one parent for the project, one parent for the samples, one for the autoconfigure code, one for the binder, and one each for the samples. When built, each will have its own artifacts.
 
 Signing and deploying requires that you set up your settings.xml file for maven:

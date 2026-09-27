@@ -29,6 +29,8 @@
         <!-- TEST -->
         <jacoco.version>0.8.13</jacoco.version>
         <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
+        <nats-server-junit.version>2.15.0</nats-server-junit.version>
+        <command-line-util.version>2026.9.28</command-line-util.version>
 
         <!-- PROD -->
         <spring-boot.version>4.0.7</spring-boot.version>
@@ -57,6 +59,18 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>berlin.yuna</groupId>
+                <artifactId>nats-server-junit</artifactId>
+                <version>${nats-server-junit.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>berlin.yuna</groupId>
+                <artifactId>command-line-util</artifactId>
+                <version>${command-line-util.version}</version>
+                <scope>test</scope>
+            </dependency>
             <dependency>
                 <groupId>io.nats</groupId>
                 <artifactId>jnats</artifactId>
@@ -253,6 +267,9 @@
                 <version>${maven-surefire-plugin.version}</version>
                 <configuration>
                     <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                    <systemPropertyVariables>
+                        <NATS_BINARY_PATH>${java.io.tmpdir}/spring-nats-test/%NATS_VERSION%/%NATS_SYSTEM%/nats-server</NATS_BINARY_PATH>
+                    </systemPropertyVariables>
                     <properties>
                         <configurationParameters>
                             junit.jupiter.execution.parallel.enabled = true
