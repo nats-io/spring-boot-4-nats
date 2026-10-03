@@ -222,7 +222,7 @@ public class NatsConnectionProperties {
     /**
      * @param server URL for the NATS server, or {@code null} to leave the connection unconfigured
      */
-    public void setServer(String server) {
+    public void setServer(@Nullable String server) {
         this.server = server;
     }
 
@@ -236,7 +236,7 @@ public class NatsConnectionProperties {
     /**
      * @param connectionName name to associate with the connection, or {@code null} to use the client default
      */
-    public void setConnectionName(String connectionName) {
+    public void setConnectionName(@Nullable String connectionName) {
         this.connectionName = connectionName;
     }
 

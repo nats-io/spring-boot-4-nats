@@ -617,6 +617,48 @@ public class PropertiesTests {
                 .hasMessage("inboxPrefix must not be null");
     }
 
+    @Test
+    public void nonRequiredSetterValuesAcceptNull() {
+        NatsConnectionProperties props = new NatsConnectionProperties();
+        props.setServer(null);
+        props.setConnectionName(null);
+        props.setUsername(null);
+        props.setPassword(null);
+        props.setToken(null);
+        props.setCredentials(null);
+        props.setJwt(null);
+        props.setNkey(null);
+        props.setKeyStorePath(null);
+        props.setKeyStorePassword(null);
+        props.setKeyStoreType(null);
+        props.setTrustStorePath(null);
+        props.setTrustStorePassword(null);
+        props.setKeyStoreProvider(null);
+        props.setTrustStoreProvider(null);
+        props.tlsProtocol(null);
+        props.setTrustStoreType(null);
+
+        assertThat(props.getServer()).isNull();
+        assertThat(props.getConnectionName()).isNull();
+        assertThat(props.getUsername()).isNull();
+        assertThat(props.getPassword()).isNull();
+        assertThat(props.getPassword()).isNull();
+        assertThat(props.getToken()).isNull();
+        assertThat(props.getCredentials()).isNull();
+        assertThat(props.getJwt()).isNull();
+        assertThat(props.getNkey()).isNull();
+        assertThat(props.getKeyStorePath()).isNull();
+        assertThat(props.getKeyStorePassword()).isNull();
+        assertThat(props.getKeyStoreType()).isNull();
+        assertThat(props.getTrustStorePath()).isNull();
+        assertThat(props.getTrustStorePassword()).isNull();
+        assertThat(props.getKeyStoreProvider()).isNull();
+        assertThat(props.getTrustStoreProvider()).isNull();
+        assertThat(props.getTlsProtocol()).isNull();
+        assertThat(props.getTrustStoreType()).isNull();
+
+    }
+
     private Path emptyPkcs12Store(String name) throws Exception {
         return pkcs12Store(name, new char[0]);
     }
