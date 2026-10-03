@@ -13,11 +13,6 @@ on:
           - patch
           - minor
           - major
-      nats_server_version:
-        description: NATS server version to build for tests
-        required: false
-        default: v2.14.3
-        type: string
       dry_run:
         description: Rehearse release publishing while skipping Maven Central upload
         required: false
@@ -58,7 +53,6 @@ jobs:
     uses: ./.github/workflows/build-common.yml
     with:
       ref: ${{ github.sha }}
-      nats_server_version: ${{ inputs.nats_server_version || 'v2.14.3' }}
       release_strategy: ${{ inputs.release_strategy }}
     secrets: inherit
 

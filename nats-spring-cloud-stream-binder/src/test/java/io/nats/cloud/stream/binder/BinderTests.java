@@ -16,6 +16,7 @@
 
 package io.nats.cloud.stream.binder;
 
+import berlin.yuna.natsserver.config.NatsOptionsBuilder;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import io.nats.client.Connection;
@@ -43,6 +44,7 @@ import io.nats.spring.boot.autoconfigure.NatsAutoConfiguration;
 import io.nats.spring.boot.autoconfigure.NatsProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.parallel.ResourceLock;
 import org.junit.jupiter.api.parallel.Resources;
 import org.slf4j.LoggerFactory;
@@ -76,24 +78,23 @@ import org.springframework.messaging.support.GenericMessage;
 import org.springframework.messaging.support.MessageBuilder;
 
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.nio.ByteBuffer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
+import static berlin.yuna.natsserver.config.NatsConfig.NET;
+import static berlin.yuna.natsserver.config.NatsConfig.PID;
+import static berlin.yuna.natsserver.config.NatsOptions.natsBuilder;
+import static berlin.yuna.natsserver.logic.NatsUtils.getNextFreePort;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -111,12 +112,15 @@ class BinderTests {
     private final ApplicationContextRunner binderContextRunner = new ApplicationContextRunner()
             .withUserConfiguration(NatsChannelBinderConfiguration.class);
 
+    @TempDir
+    Path jetStreamStorage;
+
     @Test
     void createBinderFromGlobalProperties() throws IOException, InterruptedException {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
+        try (var ts = server().nats()) {
             this.contextRunner.run(context -> {
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
-                    assertConnected(fixture.connection(), ts.getURI());
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), context.getSourceApplicationContext())) {
+                    assertConnected(fixture.connection(), ts.url());
                     assertDefaultListenersCanHandleCallbacks(fixture.connection());
                     assertThat(fixture.binder().getDefaultsPrefix()).isEqualTo("nats.spring.cloud.stream.default");
                     assertThat(fixture.binder().getExtendedPropertiesEntryClass()).isEqualTo(NatsBindingProperties.class);
@@ -129,10 +133,10 @@ class BinderTests {
 
     @Test
     void createBinderFromBinderProperties() throws IOException, InterruptedException {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
+        try (var ts = server().nats()) {
             this.contextRunner.run(context -> {
-                try (BinderFixture fixture = newBinderPropertiesBinder(ts.getURI())) {
-                    assertConnected(fixture.connection(), ts.getURI());
+                try (BinderFixture fixture = newBinderPropertiesBinder(ts.url())) {
+                    assertConnected(fixture.connection(), ts.url());
                 }
             });
         }
@@ -301,35 +305,10 @@ class BinderTests {
     }
 
     @Test
-    void testServerStartFailsWhenPortIsOwnedByNonNatsListener() throws IOException {
-        try (ServerSocket listener = new ServerSocket(0)) {
-            assertThatThrownBy(() -> new NatsBinderTestServer(listener.getLocalPort(), false))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("nats-server");
-        }
-    }
-
-    @Test
-    void configBackedServerStartFailureDeletesGeneratedConfig() throws IOException {
-        String previousServerPath = System.getProperty("nats_server_path");
-        Set<Path> before = tempNatsConfigs();
-        System.setProperty("nats_server_path", missingExecutablePath());
-
-        try {
-            assertThatThrownBy(() -> new NatsBinderTestServer(SHARED_TLS_RESOURCES + "tls.conf", false))
-                    .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Failed to run");
-            assertThat(tempNatsConfigs()).isEqualTo(before);
-        } finally {
-            restoreServerPath(previousServerPath);
-        }
-    }
-
-    @Test
     void createBinderFailsExplicitlyWhenAuthenticationFails() throws IOException, InterruptedException {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"--auth", "secret"}, false)) {
+        try (var ts = server().customArgs("--auth", "secret").nats()) {
             NatsBinderConfigurationProperties binderProps = new NatsBinderConfigurationProperties();
-            binderProps.setServer(ts.getURI());
+            binderProps.setServer(ts.url());
             binderProps.setConnectionTimeout(Duration.ofSeconds(1));
             NatsChannelBinderConfiguration config = new NatsChannelBinderConfiguration(
                     null,
@@ -347,7 +326,7 @@ class BinderTests {
 
     @Test
     void createBinderFailsExplicitlyWhenServerIsUnreachable() throws IOException, InterruptedException {
-        int unusedPort = NatsBinderTestServer.nextPort();
+        int unusedPort = getNextFreePort(4222);
         NatsBinderConfigurationProperties binderProps = new NatsBinderConfigurationProperties();
         binderProps.setServer("nats://127.0.0.1:" + unusedPort);
         binderProps.setConnectionTimeout(Duration.ofMillis(250));
@@ -366,10 +345,13 @@ class BinderTests {
 
     @Test
     void createTLSBinderFromGlobalProperties() throws IOException, InterruptedException {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(SHARED_TLS_RESOURCES + "tls.conf", false)) {
+        try (var ts = server().customArgs("--tls",
+                "--tlscert", SHARED_TLS_RESOURCES + "certs/server-cert.pem",
+                "--tlskey", SHARED_TLS_RESOURCES + "certs/server-key.pem",
+                "--tlscacert", SHARED_TLS_RESOURCES + "certs/ca.pem").nats()) {
             this.contextRunner.run(context -> {
-                try (BinderFixture fixture = newTlsGlobalBinder(ts.getURI())) {
-                    assertConnected(fixture.connection(), ts.getURI());
+                try (BinderFixture fixture = newTlsGlobalBinder(ts.url())) {
+                    assertConnected(fixture.connection(), ts.url());
                 }
             });
         }
@@ -377,12 +359,12 @@ class BinderTests {
 
     @Test
     void createBinderWithCustomListeners() throws IOException, InterruptedException {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
+        try (var ts = server().nats()) {
             AtomicReference<ConnectionListener.Events> event = new AtomicReference<>();
             NatsChannelBinder binder = new NatsChannelBinder(
                     new NatsExtendedBindingProperties(),
                     new NatsBinderConfigurationProperties(),
-                    (NatsProperties) new NatsProperties().server(ts.getURI()),
+                    (NatsProperties) new NatsProperties().server(ts.url()),
                     new NatsChannelProvisioner(),
                     (connection, type) -> event.set(type),
                     new ErrorListener() {
@@ -400,7 +382,7 @@ class BinderTests {
                     });
 
             try {
-                assertConnected(binder.getConnection(), ts.getURI());
+                assertConnected(binder.getConnection(), ts.url());
                 await().atMost(5, TimeUnit.SECONDS)
                         .untilAsserted(() -> assertThat(event.get()).isNotNull());
             } finally {
@@ -411,12 +393,12 @@ class BinderTests {
 
     @Test
     void springContextCreatesBinderFromBinderProperties() throws IOException, InterruptedException {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
+        try (var ts = server().nats()) {
             this.binderContextRunner.withPropertyValues(
-                    "nats.spring.cloud.stream.binder.server=" + ts.getURI()).run(context -> {
+                    "nats.spring.cloud.stream.binder.server=" + ts.url()).run(context -> {
                 assertThat(context).hasSingleBean(NatsChannelBinder.class);
                 NatsChannelBinder binder = context.getBean(NatsChannelBinder.class);
-                assertConnected(binder.getConnection(), ts.getURI());
+                assertConnected(binder.getConnection(), ts.url());
                 binder.getConnection().close();
             });
         }
@@ -424,13 +406,13 @@ class BinderTests {
 
     @Test
     void springContextCreatesBinderFromGlobalProperties() throws IOException, InterruptedException {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.binderContextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.binderContextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 assertThat(context).hasSingleBean(NatsChannelBinder.class);
-                assertConnected(context.getBean(Connection.class), ts.getURI());
+                assertConnected(context.getBean(Connection.class), ts.url());
 
                 NatsChannelBinder binder = context.getBean(NatsChannelBinder.class);
-                assertConnected(binder.getConnection(), ts.getURI());
+                assertConnected(binder.getConnection(), ts.url());
                 binder.getConnection().close();
             });
         }
@@ -456,7 +438,7 @@ class BinderTests {
 
     @Test
     void springContextFailsExplicitlyWhenBinderServerIsUnreachable() {
-        int unusedPort = NatsBinderTestServer.nextPort();
+        int unusedPort = getNextFreePort(4222);
         this.binderContextRunner.withPropertyValues(
                 "nats.spring.cloud.stream.binder.server=nats://127.0.0.1:" + unusedPort,
                 "nats.spring.cloud.stream.binder.connectionTimeout=250ms").run(context -> {
@@ -467,16 +449,16 @@ class BinderTests {
 
     @Test
     void binderPropertiesWinOverGlobalProperties() throws IOException, InterruptedException {
-        try (NatsBinderTestServer global = new NatsBinderTestServer();
-             NatsBinderTestServer binderSpecific = new NatsBinderTestServer()) {
+        try (var global = server().nats();
+             var binderSpecific = server().nats()) {
             this.binderContextRunner.withPropertyValues(
-                    "nats.spring.server=" + global.getURI(),
-                    "nats.spring.cloud.stream.binder.server=" + binderSpecific.getURI()).run(context -> {
+                    "nats.spring.server=" + global.url(),
+                    "nats.spring.cloud.stream.binder.server=" + binderSpecific.url()).run(context -> {
                 Connection globalConnection = context.getBean(Connection.class);
                 NatsChannelBinder binder = context.getBean(NatsChannelBinder.class);
                 try {
-                    assertConnected(globalConnection, global.getURI());
-                    assertConnected(binder.getConnection(), binderSpecific.getURI());
+                    assertConnected(globalConnection, global.url());
+                    assertConnected(binder.getConnection(), binderSpecific.url());
                 } finally {
                     globalConnection.close();
                     binder.getConnection().close();
@@ -487,12 +469,12 @@ class BinderTests {
 
     @Test
     void testMessageProducer() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String theMessage = "hello world";
                     String in = "in";
 
@@ -525,12 +507,12 @@ class BinderTests {
 
     @Test
     void messageProducerStartAndStopAreIdempotent() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String subject = "producer.lifecycle";
                     ConsumerDestination from = fixture.provisioner().provisionConsumerDestination(subject, "", null);
                     NatsMessageProducer producer =
@@ -560,12 +542,12 @@ class BinderTests {
 
     @Test
     void messageProducerSimpleConstructorReceivesMessage() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String subject = "producer.simple.constructor";
                     NatsConsumerDestination from =
                             (NatsConsumerDestination) fixture.provisioner().provisionConsumerDestination(subject, "", null);
@@ -593,12 +575,12 @@ class BinderTests {
 
     @Test
     void messageProducerWithoutOutputChannelKeepsRunningAndDropsMessage() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String subject = "producer.no.output";
                     ConsumerDestination from = fixture.provisioner().provisionConsumerDestination(subject, "", null);
                     NatsMessageProducer producer =
@@ -623,12 +605,12 @@ class BinderTests {
 
     @Test
     void messageProducerKeepsRunningWhenOutputChannelThrows() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String subject = "producer.output.failure";
                     ConsumerDestination from = fixture.provisioner().provisionConsumerDestination(subject, "", null);
                     NatsMessageProducer producer =
@@ -658,12 +640,12 @@ class BinderTests {
 
     @Test
     void testMessageProducerWithGroup() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String theMessage = "hello world";
                     String in = "in";
                     String group = "group";
@@ -698,12 +680,12 @@ class BinderTests {
 
     @Test
     void messageSourceStartAndStopAreIdempotent() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String subject = "source.lifecycle";
                     NatsConsumerDestination from =
                             (NatsConsumerDestination) fixture.provisioner().provisionConsumerDestination(subject, "", null);
@@ -735,12 +717,12 @@ class BinderTests {
 
     @Test
     void messageSourceReceiveReturnsNullWhenInterrupted() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     NatsConsumerDestination from = (NatsConsumerDestination) fixture.provisioner()
                             .provisionConsumerDestination("source.interrupted", "", null);
                     NatsMessageSource src = new NatsMessageSource(from, fixture.connection());
@@ -782,12 +764,12 @@ class BinderTests {
 
     @Test
     void testMessageSource() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String theMessage = "hello world";
                     String in = "in";
 
@@ -818,12 +800,12 @@ class BinderTests {
 
     @Test
     void messageSourcePreservesNatsHeadersAsSpringHeadersForIssue65() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String subject = "source.headers.issue65";
                     String payload = "headers survive polling";
                     NatsConsumerDestination from =
@@ -851,12 +833,12 @@ class BinderTests {
 
     @Test
     void testMessageSourceWithQueue() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String theMessage = "hello world";
                     String in = "in";
                     String group = "group";
@@ -935,12 +917,12 @@ class BinderTests {
 
     @Test
     void testMessageHandler() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), context.getSourceApplicationContext())) {
                     String theMessage = "hello world";
                     String out = "out";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(out, null);
@@ -972,12 +954,12 @@ class BinderTests {
 
     @Test
     void messageHandlerPublishesCustomHeadersForIssue65() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), context.getSourceApplicationContext())) {
                     String subject = "handler.headers.issue65";
                     String payload = "headers survive publish";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(subject, null);
@@ -1011,12 +993,12 @@ class BinderTests {
         Logger mapperLogger = (Logger) LoggerFactory.getLogger("io.nats.cloud.stream.binder.NatsHeaderMapper");
         Level originalLevel = mapperLogger.getLevel();
         mapperLogger.setLevel(Level.DEBUG);
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), context.getSourceApplicationContext())) {
                     String subject = "handler.headers.skipped";
                     String payload = "only payload";
                     ProducerDestination to = fixture.provisioner().provisionProducerDestination(subject, null);
@@ -1050,12 +1032,12 @@ class BinderTests {
 
     @Test
     void messageProducerPreservesNatsHeadersAsSpringHeadersForIssue65() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String subject = "producer.headers.issue65";
                     String payload = "headers survive dispatch";
                     ConsumerDestination from = fixture.provisioner().provisionConsumerDestination(subject, "", null);
@@ -1093,12 +1075,12 @@ class BinderTests {
 
     @Test
     void customHeadersRoundTripThroughBindProducerAndBindConsumerForIssue65() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.headers.issue65";
                     String payload = "headers survive round trip";
@@ -1139,12 +1121,12 @@ class BinderTests {
 
     @Test
     void explicitHeaderModeHeadersRoundTripThroughProducerAndConsumerBindings() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.headers.explicit";
                     String payload = "explicit native headers";
@@ -1188,12 +1170,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerPublishesPersistedMessageForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_PRODUCER");
                     String durable = uniqueNatsName("js_reader");
@@ -1240,12 +1222,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerCanResolveStreamFromSubjectForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_RESOLVE");
                     String durable = uniqueNatsName("js_resolve");
@@ -1286,12 +1268,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerCanResolveStreamFromSubjectWithoutHeadersForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_RESOLVE_NO_HEADERS");
                     String durable = uniqueNatsName("js_resolve_no_headers");
@@ -1335,12 +1317,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerHonorsHeaderModeNoneForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_NO_HEADERS");
                     String durable = uniqueNatsName("js_no_headers");
@@ -1383,12 +1365,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerProvisioningRejectsExistingStreamWithoutDestinationSubjectForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_PROVISION_PRODUCER");
                     String existingSubject = uniqueSubject("jetstream.provision.existing.issue52");
@@ -1416,12 +1398,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerProvisioningRequiresStreamNameForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = uniqueSubject("jetstream.provision.missing.stream.issue52");
                     DirectChannel output = new DirectChannel();
@@ -1442,12 +1424,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerProvisioningAppliesStreamOptionsForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_PROVISION_OPTIONS");
                     String subject = uniqueSubject("jetstream.provision.options.issue52");
@@ -1472,12 +1454,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerProvisioningReportsInvalidStreamConfigurationForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_PROVISION_INVALID");
                     String subject = uniqueSubject("jetstream.provision.invalid.issue52");
@@ -1501,12 +1483,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerProvisioningKeepsExistingWildcardSubjectForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_PROVISION_WILDCARD");
                     String base = uniqueSubject("jetstream.provision.wildcard.issue52");
@@ -1551,12 +1533,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerProvisioningHandlesExistingSubjectPatternsForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String exactStream = uniqueNatsName("JS_PROVISION_EXACT");
                     String exactSubject = uniqueSubject("jetstream.provision.exact.issue52");
@@ -1613,13 +1595,13 @@ class BinderTests {
 
     @Test
     void concurrentJetStreamProducerProvisioningDoesNotLoseSubjectsForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture firstFixture = newGlobalBinder(ts.getURI());
-                     BinderFixture secondFixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture firstFixture = newGlobalBinder(ts.url());
+                     BinderFixture secondFixture = newGlobalBinder(ts.url())) {
                     firstFixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     secondFixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_PROVISION_CONCURRENT");
@@ -1672,12 +1654,12 @@ class BinderTests {
 
     @Test
     void jetStreamConsumerReceivesAndAcknowledgesMessageForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_CONSUMER");
                     String durable = uniqueNatsName("js_consumer");
@@ -1722,12 +1704,12 @@ class BinderTests {
 
     @Test
     void jetStreamConsumerWithGroupReceivesMessageForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_GROUP");
                     String group = uniqueNatsName("js_group");
@@ -1766,12 +1748,12 @@ class BinderTests {
 
     @Test
     void jetStreamConsumerRequiresStreamAndConsumerIdentityForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_CONSUMER_IDENTITY");
                     String consumer = uniqueNatsName("js_consumer_identity");
@@ -1806,12 +1788,12 @@ class BinderTests {
 
     @Test
     void jetStreamConsumerRequiresExistingNamedConsumerForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_MISSING_CONSUMER");
                     String consumer = uniqueNatsName("js_missing_consumer");
@@ -1836,12 +1818,12 @@ class BinderTests {
 
     @Test
     void jetStreamConsumerBindsExistingConsumerConfigurationForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_EXISTING_CONSUMER");
                     String consumer = uniqueNatsName("js_existing_consumer");
@@ -1888,12 +1870,12 @@ class BinderTests {
 
     @Test
     void jetStreamConsumerNacksWhenOutputChannelRejectsMessageForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_REJECTED_SEND");
                     String durable = uniqueNatsName("js_rejected_send");
@@ -1949,12 +1931,12 @@ class BinderTests {
 
     @Test
     void jetStreamConsumerNacksWhenOutputChannelThrowsForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_THROWING_SEND");
                     String durable = uniqueNatsName("js_throwing_send");
@@ -2010,12 +1992,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerReceivesAndAcknowledgesMessageForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_POLLED");
                     String durable = uniqueNatsName("js_polled");
@@ -2061,12 +2043,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerReceiveReturnsNullWhenStoppedForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String stream = uniqueNatsName("JS_POLLED_STOPPED");
                     String consumer = uniqueNatsName("js_polled_stopped");
                     String subject = uniqueSubject("jetstream.polled.stopped.issue52");
@@ -2091,12 +2073,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerStopUnblocksIdleReceiveForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String stream = uniqueNatsName("JS_POLLED_STOP_IDLE");
                     String consumer = uniqueNatsName("js_polled_stop_idle");
                     String subject = uniqueSubject("jetstream.polled.stop.idle.issue52");
@@ -2133,12 +2115,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerAcknowledgmentCallbackIgnoresRepeatForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String stream = uniqueNatsName("JS_POLLED_REPEAT_ACK");
                     String consumer = uniqueNatsName("js_polled_repeat_ack");
                     String subject = uniqueSubject("jetstream.polled.repeat.ack.issue52");
@@ -2185,12 +2167,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerReturnsFalseWhenNoMessageIsAvailableForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_POLLED_EMPTY");
                     String durable = uniqueNatsName("js_polled_empty");
@@ -2228,12 +2210,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerRequiresStreamAndConsumerIdentityForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_POLLED_IDENTITY");
                     String consumer = uniqueNatsName("js_polled_identity");
@@ -2268,12 +2250,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerRequeuesWhenHandlerRequestsRedeliveryForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_POLLED_REQUEUE");
                     String durable = uniqueNatsName("js_polled_requeue");
@@ -2322,12 +2304,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerNacksWhenHandlerThrowsForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_POLLED_EXCEPTION");
                     String durable = uniqueNatsName("js_polled_exception");
@@ -2376,12 +2358,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerUsesGroupAsConsumerNameWhenConsumerNameIsUnsetForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String stream = uniqueNatsName("JS_POLLED_GROUP");
                     String group = uniqueNatsName("js_polled_group");
@@ -2422,12 +2404,12 @@ class BinderTests {
 
     @Test
     void jetStreamPolledConsumerUsesNamedConsumerContextForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     String stream = uniqueNatsName("JS_POLLED_CONTEXT");
                     String consumer = uniqueNatsName("js_polled_context");
                     String subject = uniqueSubject("jetstream.polled.context.issue52");
@@ -2465,12 +2447,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerRejectsReplyChannelForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), context.getSourceApplicationContext())) {
                     String stream = uniqueNatsName("JS_REPLY");
                     String subject = uniqueSubject("jetstream.reply.issue52");
                     addMemoryStream(conn, stream, subject);
@@ -2494,12 +2476,12 @@ class BinderTests {
 
     @Test
     void jetStreamProducerReportsServerPublishFailureForIssue52() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer(new String[]{"-js"}, false)) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = jetStreamServer().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), context.getSourceApplicationContext())) {
                     String stream = uniqueNatsName("JS_MISSING_PUBLISH");
                     String subject = uniqueSubject("jetstream.missing.publish.issue52");
                     ExtendedProducerProperties<NatsProducerProperties> producerProperties =
@@ -2519,12 +2501,12 @@ class BinderTests {
 
     @Test
     void embeddedHeaderModeEmbedsStandardHeadersInPayloadForIssue13() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.embedded.headers.issue13.raw";
                     String payload = "embedded header payload";
@@ -2564,12 +2546,12 @@ class BinderTests {
 
     @Test
     void embeddedHeaderModeEmbedsConfiguredCustomHeadersForIssue13() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), TRACE_HEADER)) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), TRACE_HEADER)) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.embedded.headers.issue13.custom";
                     String payload = "embedded custom header payload";
@@ -2610,12 +2592,12 @@ class BinderTests {
 
     @Test
     void embeddedHeaderModeRoundTripsThroughProducerAndConsumerBindingsForIssue13() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.embedded.headers.issue13.roundtrip";
                     String payload = "embedded header round trip";
@@ -2660,12 +2642,12 @@ class BinderTests {
 
     @Test
     void embeddedHeaderModeRestoresStandardHeadersFromPayloadForIssue13() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.embedded.headers.issue13.consumer";
                     String payload = "embedded header consumer";
@@ -2706,12 +2688,12 @@ class BinderTests {
 
     @Test
     void headerModeNoneDoesNotPublishNativeNatsHeaders() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.headers.none.producer";
                     String payload = "headers suppressed";
@@ -2747,12 +2729,12 @@ class BinderTests {
 
     @Test
     void headerModeNoneDoesNotExposeNativeNatsHeadersToConsumer() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.headers.none.consumer";
                     String payload = "headers hidden";
@@ -2789,12 +2771,12 @@ class BinderTests {
 
     @Test
     void embeddedHeaderModeDoesNotParsePayloadWhenNativeNatsHeadersArePresent() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url())) {
                     fixture.binder().setApplicationContext(context.getSourceApplicationContext(GenericApplicationContext.class));
                     String subject = "binder.embedded.headers.native.present";
                     String payload = "payload that should stay embedded";
@@ -2837,12 +2819,12 @@ class BinderTests {
 
     @Test
     void testRequestReply() throws Exception {
-        try (NatsBinderTestServer ts = new NatsBinderTestServer()) {
-            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.getURI()).run(context -> {
+        try (var ts = server().nats()) {
+            this.contextRunner.withPropertyValues("nats.spring.server=" + ts.url()).run(context -> {
                 Connection conn = context.getBean(Connection.class);
-                assertConnected(conn, ts.getURI());
+                assertConnected(conn, ts.url());
 
-                try (BinderFixture fixture = newGlobalBinder(ts.getURI(), context.getSourceApplicationContext())) {
+                try (BinderFixture fixture = newGlobalBinder(ts.url(), context.getSourceApplicationContext())) {
                     String request = "hello request";
                     String reply = "hello reply";
                     String req2rep = "req2rep";
@@ -3109,26 +3091,13 @@ class BinderTests {
                 .doesNotThrowAnyException();
     }
 
-    private static Set<Path> tempNatsConfigs() throws IOException {
-        Path tempDirectory = Path.of(System.getProperty("java.io.tmpdir"));
-        try (Stream<Path> files = Files.list(tempDirectory)) {
-            return files
-                    .filter(path -> path.getFileName().toString().startsWith("spring_nats_test"))
-                    .filter(path -> path.getFileName().toString().endsWith(".conf"))
-                    .collect(Collectors.toSet());
-        }
+    private static NatsOptionsBuilder server() {
+        return natsBuilder().port(-1).config(NET, "localhost").config(PID, "target/nats-%PORT%.pid");
     }
 
-    private static String missingExecutablePath() {
-        return Path.of(System.getProperty("java.io.tmpdir"), "missing-nats-server-" + System.nanoTime()).toString();
-    }
-
-    private static void restoreServerPath(String previousServerPath) {
-        if (previousServerPath == null) {
-            System.clearProperty("nats_server_path");
-        } else {
-            System.setProperty("nats_server_path", previousServerPath);
-        }
+    private NatsOptionsBuilder jetStreamServer() {
+        return server().jetStream(true).customArgs("--store_dir",
+                "'" + jetStreamStorage.toString().replace("'", "'\\''") + "'");
     }
 
     private record BinderFixture(NatsChannelProvisioner provisioner, NatsChannelBinder binder, ConfigurableApplicationContext context) implements AutoCloseable {

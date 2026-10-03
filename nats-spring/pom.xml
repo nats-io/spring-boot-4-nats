@@ -23,6 +23,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>berlin.yuna</groupId>
+            <artifactId>nats-server-junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.nats</groupId>
             <artifactId>jnats</artifactId>
         </dependency>
