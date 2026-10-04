@@ -824,7 +824,7 @@ public class NatsConnectionProperties {
      * @param keyStorePath file path to SSL keystore, or {@code null} to leave it unset
      * @return chainable properties
      */
-    public NatsConnectionProperties keyStorePath(String keyStorePath) {
+    public NatsConnectionProperties keyStorePath(@Nullable String keyStorePath) {
         this.keyStorePath = keyStorePath;
         return this;
     }
