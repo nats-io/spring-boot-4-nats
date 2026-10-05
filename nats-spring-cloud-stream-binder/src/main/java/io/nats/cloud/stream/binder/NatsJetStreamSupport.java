@@ -23,10 +23,14 @@ import io.nats.client.api.StorageType;
 import io.nats.client.api.StreamConfiguration;
 import io.nats.client.api.StreamInfo;
 import io.nats.cloud.stream.binder.properties.NatsProducerProperties;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
+import org.springframework.lang.Contract;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 
 class NatsJetStreamSupport {
     static final Duration DEFAULT_JETSTREAM_POLL_TIMEOUT = Duration.ofSeconds(1);
@@ -37,19 +41,19 @@ class NatsJetStreamSupport {
     private NatsJetStreamSupport() {
     }
 
-    static String normalize(String value) {
+    static @Nullable String normalize(@Nullable String value) {
         if (!hasText(value)) {
             return null;
         }
-
         return value.trim();
     }
 
-    static boolean hasText(String value) {
+    @Contract("null -> false")
+    static boolean hasText(@Nullable String value) {
         return value != null && value.trim().length() > 0;
     }
 
-    static void provisionStream(Connection connection, String subject, NatsProducerProperties properties) {
+    static void provisionStream(@Nullable Connection connection, String subject, @Nullable NatsProducerProperties properties) {
         if (properties == null || !properties.isJetStream() || !properties.isProvisionStream()) {
             return;
         }
@@ -61,11 +65,11 @@ class NatsJetStreamSupport {
                 properties.getStreamReplicas());
     }
 
-    private static void provisionStream(Connection connection,
+    private static void provisionStream(@Nullable Connection connection,
                                         String subject,
-                                        String streamName,
-                                        StorageType storageType,
-                                        Integer streamReplicas) {
+                                        @Nullable String streamName,
+                                        @Nullable StorageType storageType,
+                                        @Nullable Integer streamReplicas) {
         String stream = normalize(streamName);
         String streamSubject = normalize(subject);
         if (!hasText(stream)) {
@@ -95,8 +99,8 @@ class NatsJetStreamSupport {
     private static void addStream(JetStreamManagement management,
                                   String stream,
                                   String subject,
-                                  StorageType storageType,
-                                  Integer streamReplicas)
+                                  @Nullable StorageType storageType,
+                                  @Nullable Integer streamReplicas)
             throws IOException, JetStreamApiException {
         try {
             management.addStream(newStreamConfiguration(stream, subject, storageType, streamReplicas));
@@ -111,8 +115,8 @@ class NatsJetStreamSupport {
 
     private static StreamConfiguration newStreamConfiguration(String stream,
                                                               String subject,
-                                                              StorageType storageType,
-                                                              Integer streamReplicas) {
+                                                              @Nullable StorageType storageType,
+                                                              @Nullable Integer streamReplicas) {
         StreamConfiguration.Builder builder = StreamConfiguration.builder()
                 .name(stream)
                 .subjects(subject);
@@ -125,7 +129,7 @@ class NatsJetStreamSupport {
         return builder.build();
     }
 
-    private static StreamInfo streamInfoOrNull(JetStreamManagement management, String stream)
+    private static @Nullable StreamInfo streamInfoOrNull(JetStreamManagement management, String stream)
             throws IOException, JetStreamApiException {
         try {
             return management.getStreamInfo(stream);
@@ -164,7 +168,6 @@ class NatsJetStreamSupport {
         if (!hasText(normalizedPattern)) {
             return false;
         }
-
         String[] patternTokens = normalizedPattern.split("\\.");
         String[] subjectTokens = subject.split("\\.");
         for (int index = 0; index < patternTokens.length; index++) {

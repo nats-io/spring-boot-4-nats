@@ -7,9 +7,6 @@ on:
         required: false
         default: ''
         type: string
-      nats_server_version:
-        required: true
-        type: string
       release_strategy:
         required: false
         default: none
@@ -42,11 +39,6 @@ on:
         description: Git ref to build
         required: false
         default: ''
-        type: string
-      nats_server_version:
-        description: NATS server version to build for tests
-        required: false
-        default: v2.14.3
         type: string
       release_strategy:
         description: Release strategy to apply
@@ -242,74 +234,6 @@ jobs:
           RELEASE_VERSION: ${{ steps.resolve_version.outputs.resolved_version }}
           BUILD_OUTPUT_TIMESTAMP: ${{ steps.commit_info.outputs.build_output_timestamp }}
         run: ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
-
-      - name: "📦 Clone NATS Server [${{ inputs.nats_server_version }}]"
-        env:
-          NATS_SERVER_VERSION: ${{ inputs.nats_server_version }}
-        shell: sh
-        run: |
-          set -eu
-          git clone --depth 1 --branch "${NATS_SERVER_VERSION}" \
-            https://github.com/nats-io/nats-server.git "${RUNNER_TEMP}/nats-server-src"
-
-      - name: "🔍 Read Go Info"
-        id: go_info
-        shell: sh
-        run: |
-          set -eu
-          go_version=$(awk '/^toolchain / { print $2; exit } /^go / { print $2; exit }' \
-            "${RUNNER_TEMP}/nats-server-src/go.mod")
-          case "${go_version}" in
-            go*)
-              go_version=${go_version#go}
-              ;;
-          esac
-          if [ -z "${go_version}" ]; then
-            echo "Unable to determine Go version from NATS go.mod" >&2
-            exit 1
-          fi
-          printf 'go_version=%s\n' "${go_version}" >> "${GITHUB_OUTPUT}"
-
-      - name: "🐹 Setup Go [${{ steps.go_info.outputs.go_version }}]"
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version: ${{ steps.go_info.outputs.go_version }}
-          cache: false
-
-      - name: "📁 Prepare NATS Server Cache Directory"
-        env:
-          NATS_SERVER_VERSION: ${{ inputs.nats_server_version }}
-        shell: sh
-        run: |
-          set -eu
-          mkdir -p "${GITHUB_WORKSPACE}/.cache/nats-server/${NATS_SERVER_VERSION}"
-
-      - name: "♻️ Cache NATS Server [${{ inputs.nats_server_version }}]"
-        id: nats_cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: ${{ github.workspace }}/.cache/nats-server/${{ inputs.nats_server_version }}
-          key: nats-server-${{ runner.os }}-${{ runner.arch }}-${{ inputs.nats_server_version }}
-
-      - name: "🔨 Build NATS Server [${{ inputs.nats_server_version }}]"
-        if: steps.nats_cache.outputs.cache-hit != 'true'
-        env:
-          NATS_SERVER_VERSION: ${{ inputs.nats_server_version }}
-        shell: sh
-        run: |
-          set -eu
-          cd "${RUNNER_TEMP}/nats-server-src"
-          go build -o "${GITHUB_WORKSPACE}/.cache/nats-server/${NATS_SERVER_VERSION}/nats-server" ./main.go
-
-      - name: "📍 Expose NATS Server"
-        env:
-          NATS_SERVER_VERSION: ${{ inputs.nats_server_version }}
-        shell: sh
-        run: |
-          set -eu
-          chmod +x "${GITHUB_WORKSPACE}/.cache/nats-server/${NATS_SERVER_VERSION}/nats-server"
-          printf '%s\n' "${GITHUB_WORKSPACE}/.cache/nats-server/${NATS_SERVER_VERSION}" >> "${GITHUB_PATH}"
-          "${GITHUB_WORKSPACE}/.cache/nats-server/${NATS_SERVER_VERSION}/nats-server" -v
 
       - name: "🧪 Build and Verify"
         env:

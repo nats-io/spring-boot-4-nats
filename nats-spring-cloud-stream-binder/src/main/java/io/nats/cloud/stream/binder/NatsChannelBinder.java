@@ -29,6 +29,7 @@ import io.nats.cloud.stream.binder.properties.NatsProducerProperties;
 import io.nats.spring.boot.autoconfigure.NatsProperties;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.cloud.stream.binder.AbstractMessageChannelBinder;
 import org.springframework.cloud.stream.binder.BinderSpecificPropertiesProvider;
@@ -45,6 +46,7 @@ import org.springframework.messaging.MessageHandler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A NATS channel binder provides a NATS connection to the code attached to it.
@@ -54,9 +56,9 @@ public class NatsChannelBinder extends
         implements ExtendedPropertiesBinder<MessageChannel, NatsConsumerProperties, NatsProducerProperties> {
     private static final Log logger = LogFactory.getLog(NatsChannelBinder.class);
     private final NatsExtendedBindingProperties bindingProperties;
-    private NatsBinderConfigurationProperties properties;
-    private NatsProperties natsProperties;
-    private Connection connection;
+    private @Nullable NatsBinderConfigurationProperties properties;
+    private @Nullable NatsProperties natsProperties;
+    private @Nullable Connection connection;
 
     /**
      * Create a binder with the specified properties. It is expected that either the NatsBinderConfigurationProperties will have a
@@ -72,13 +74,14 @@ public class NatsChannelBinder extends
      * @param errorListener        custom error listener
      */
     public NatsChannelBinder(NatsExtendedBindingProperties bindingProperties,
-                             NatsBinderConfigurationProperties properties,
-                             NatsProperties natsProperties,
+                             @Nullable NatsBinderConfigurationProperties properties,
+                             @Nullable NatsProperties natsProperties,
                              NatsChannelProvisioner provisioningProvider,
-                             ConnectionListener connectionListener,
-                             ErrorListener errorListener) {
-        super(headersToEmbed(properties), provisioningProvider);
-        this.bindingProperties = bindingProperties;
+                             @Nullable ConnectionListener connectionListener,
+                             @Nullable ErrorListener errorListener) {
+        super(headersToEmbed(properties), Objects.requireNonNull(provisioningProvider,
+                "provisioningProvider must not be null"));
+        this.bindingProperties = Objects.requireNonNull(bindingProperties, "bindingProperties must not be null");
         this.properties = properties;
         this.natsProperties = natsProperties;
 
@@ -90,10 +93,10 @@ public class NatsChannelBinder extends
             // Use the binder properties first, if they don't have a server, try the global
             if (bindingServer != null && bindingServer.length() > 0) {
                 logger.info("binder connecting to nats with named properties " + this.properties);
-                builder = this.properties.toOptionsBuilder();
+                builder = this.properties != null ? this.properties.toOptionsBuilder() : Options.builder();
             } else if (globalServer != null && globalServer.length() > 0) {
                 logger.info("binder connecting to nats with global properties " + this.natsProperties);
-                builder = this.natsProperties.toOptionsBuilder();
+                builder = this.natsProperties != null ? this.natsProperties.toOptionsBuilder() : Options.builder();
             } else {
                 this.connection = null;
                 logger.info("unable to connect from binder to NATS no server properties where found");
@@ -115,17 +118,17 @@ public class NatsChannelBinder extends
             } else {
                 builder = builder.errorListener(new ErrorListener() {
                     @Override
-                    public void slowConsumerDetected(Connection conn, Consumer consumer) {
+                    public void slowConsumerDetected(@Nullable Connection conn, Consumer consumer) {
                         logger.info("NATS connection slow consumer detected");
                     }
 
                     @Override
-                    public void exceptionOccurred(Connection conn, Exception exp) {
+                    public void exceptionOccurred(@Nullable Connection conn, Exception exp) {
                         logger.info("NATS connection exception occurred", exp);
                     }
 
                     @Override
-                    public void errorOccurred(Connection conn, String error) {
+                    public void errorOccurred(@Nullable Connection conn, String error) {
                         logger.info("NATS connection error occurred " + error);
                     }
                 });
@@ -143,9 +146,9 @@ public class NatsChannelBinder extends
     }
 
     /**
-     * @return NATS connection
+     * @return NATS connection, or {@code null} when no server was configured or connection setup failed
      */
-    public Connection getConnection() {
+    public @Nullable Connection getConnection() {
         return this.connection;
     }
 
@@ -195,32 +198,32 @@ public class NatsChannelBinder extends
                 registerErrorInfrastructure(destination, group, consumerProperties, true));
     }
 
-    private static NatsProducerProperties producerExtension(ExtendedProducerProperties<NatsProducerProperties> producerProperties) {
+    private static @Nullable NatsProducerProperties producerExtension(@Nullable ExtendedProducerProperties<NatsProducerProperties> producerProperties) {
         return producerProperties == null ? null : producerProperties.getExtension();
     }
 
-    private static NatsConsumerProperties consumerExtension(ExtendedConsumerProperties<NatsConsumerProperties> consumerProperties) {
+    private static @Nullable NatsConsumerProperties consumerExtension(@Nullable ExtendedConsumerProperties<NatsConsumerProperties> consumerProperties) {
         return consumerProperties == null ? null : consumerProperties.getExtension();
     }
 
-    private static boolean isJetStream(NatsProducerProperties properties) {
+    private static boolean isJetStream(@Nullable NatsProducerProperties properties) {
         return properties != null && properties.isJetStream();
     }
 
-    private static boolean isJetStream(NatsConsumerProperties properties) {
+    private static boolean isJetStream(@Nullable NatsConsumerProperties properties) {
         return properties != null && properties.isJetStream();
     }
 
-    private static String streamName(NatsProducerProperties properties) {
-        return properties == null ? null : properties.getStreamName();
+    private static @Nullable String streamName(@Nullable NatsProducerProperties properties) {
+        return properties != null ? properties.getStreamName() : null;
     }
 
-    private static String streamName(NatsConsumerProperties properties) {
-        return properties == null ? null : properties.getStreamName();
+    private static @Nullable String streamName(@Nullable NatsConsumerProperties properties) {
+        return properties != null ? properties.getStreamName() : null;
     }
 
-    private static String consumerName(NatsConsumerProperties properties) {
-        return properties == null ? null : properties.getConsumerName();
+    private static @Nullable String consumerName(@Nullable NatsConsumerProperties properties) {
+        return properties != null ? properties.getConsumerName() : null;
     }
 
     private static boolean shouldUseNativeHeaders(ExtendedProducerProperties<NatsProducerProperties> producerProperties) {
@@ -239,7 +242,7 @@ public class NatsChannelBinder extends
         return !HeaderMode.none.equals(consumerProperties == null ? null : consumerProperties.getHeaderMode());
     }
 
-    private static String[] headersToEmbed(NatsBinderConfigurationProperties properties) {
+    private static String[] headersToEmbed(@Nullable NatsBinderConfigurationProperties properties) {
         if (properties == null || properties.getHeadersToEmbed() == null) {
             return EmbeddedHeaderUtils.headersToEmbed(null);
         }

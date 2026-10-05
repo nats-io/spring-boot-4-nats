@@ -16,10 +16,12 @@
 
 package io.nats.cloud.stream.binder.properties;
 
+import org.jspecify.annotations.Nullable;
+
 public class NatsConsumerProperties {
     private boolean jetStream;
-    private String streamName;
-    private String consumerName;
+    private @Nullable String streamName;
+    private @Nullable String consumerName;
 
     /**
      * @return whether this consumer subscribes through JetStream instead of core NATS
@@ -38,28 +40,28 @@ public class NatsConsumerProperties {
     /**
      * @return optional JetStream stream name used for subscriptions
      */
-    public String getStreamName() {
+    public @Nullable String getStreamName() {
         return this.streamName;
     }
 
     /**
      * @param streamName optional JetStream stream name used for subscriptions
      */
-    public void setStreamName(String streamName) {
+    public void setStreamName(@Nullable String streamName) {
         this.streamName = streamName;
     }
 
     /**
      * @return optional JetStream consumer name used for subscriptions
      */
-    public String getConsumerName() {
+    public @Nullable String getConsumerName() {
         return this.consumerName;
     }
 
     /**
      * @param consumerName optional JetStream consumer name used for subscriptions
      */
-    public void setConsumerName(String consumerName) {
+    public void setConsumerName(@Nullable String consumerName) {
         this.consumerName = consumerName;
     }
 

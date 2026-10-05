@@ -581,6 +581,84 @@ public class PropertiesTests {
                 .contains("user=**********", "password=**********", "token=**********", "creds=**********", "nkey=**********");
     }
 
+    @Test
+    public void requiredSetterValuesRejectNull() {
+        NatsConnectionProperties props = new NatsConnectionProperties();
+
+        assertThatThrownBy(() -> props.setReconnectWait(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("reconnectWait must not be null");
+        assertThatThrownBy(() -> props.setConnectionTimeout(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("connectionTimeout must not be null");
+        assertThatThrownBy(() -> props.setPingInterval(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("pingInterval must not be null");
+        assertThatThrownBy(() -> props.setInboxPrefix(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("inboxPrefix must not be null");
+    }
+
+    @Test
+    public void requiredFluentValuesRejectNull() {
+        NatsConnectionProperties props = new NatsConnectionProperties();
+
+        assertThatThrownBy(() -> props.reconnectWait(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("reconnectWait must not be null");
+        assertThatThrownBy(() -> props.connectionTimeout(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("connectionTimeout must not be null");
+        assertThatThrownBy(() -> props.pingInterval(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("pingInterval must not be null");
+        assertThatThrownBy(() -> props.inboxPrefix(null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("inboxPrefix must not be null");
+    }
+
+    @Test
+    public void nonRequiredSetterValuesAcceptNull() {
+        NatsConnectionProperties props = new NatsConnectionProperties();
+        props.setServer(null);
+        props.setConnectionName(null);
+        props.setUsername(null);
+        props.setPassword(null);
+        props.setToken(null);
+        props.setCredentials(null);
+        props.setJwt(null);
+        props.setNkey(null);
+        props.setKeyStorePath(null);
+        props.setKeyStorePassword(null);
+        props.setKeyStoreType(null);
+        props.setTrustStorePath(null);
+        props.setTrustStorePassword(null);
+        props.setKeyStoreProvider(null);
+        props.setTrustStoreProvider(null);
+        props.tlsProtocol(null);
+        props.setTrustStoreType(null);
+
+        assertThat(props.getServer()).isNull();
+        assertThat(props.getConnectionName()).isNull();
+        assertThat(props.getUsername()).isNull();
+        assertThat(props.getPassword()).isNull();
+        assertThat(props.getPassword()).isNull();
+        assertThat(props.getToken()).isNull();
+        assertThat(props.getCredentials()).isNull();
+        assertThat(props.getJwt()).isNull();
+        assertThat(props.getNkey()).isNull();
+        assertThat(props.getKeyStorePath()).isNull();
+        assertThat(props.getKeyStorePassword()).isNull();
+        assertThat(props.getKeyStoreType()).isNull();
+        assertThat(props.getTrustStorePath()).isNull();
+        assertThat(props.getTrustStorePassword()).isNull();
+        assertThat(props.getKeyStoreProvider()).isNull();
+        assertThat(props.getTrustStoreProvider()).isNull();
+        assertThat(props.getTlsProtocol()).isNull();
+        assertThat(props.getTrustStoreType()).isNull();
+
+    }
+
     private Path emptyPkcs12Store(String name) throws Exception {
         return pkcs12Store(name, new char[0]);
     }

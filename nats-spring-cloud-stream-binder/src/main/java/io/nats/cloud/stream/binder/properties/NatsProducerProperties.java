@@ -17,13 +17,14 @@
 package io.nats.cloud.stream.binder.properties;
 
 import io.nats.client.api.StorageType;
+import org.jspecify.annotations.Nullable;
 
 public class NatsProducerProperties {
     private boolean jetStream;
-    private String streamName;
+    private @Nullable String streamName;
     private boolean provisionStream;
-    private StorageType streamStorageType;
-    private Integer streamReplicas;
+    private @Nullable StorageType streamStorageType;
+    private @Nullable Integer streamReplicas;
 
     /**
      * @return whether this producer publishes through JetStream instead of core NATS
@@ -42,14 +43,14 @@ public class NatsProducerProperties {
     /**
      * @return optional JetStream stream name used for publish acknowledgements
      */
-    public String getStreamName() {
+    public @Nullable String getStreamName() {
         return this.streamName;
     }
 
     /**
      * @param streamName optional JetStream stream name used for publish acknowledgements
      */
-    public void setStreamName(String streamName) {
+    public void setStreamName(@Nullable String streamName) {
         this.streamName = streamName;
     }
 
@@ -70,28 +71,28 @@ public class NatsProducerProperties {
     /**
      * @return optional storage type used when a missing JetStream stream is provisioned
      */
-    public StorageType getStreamStorageType() {
+    public @Nullable StorageType getStreamStorageType() {
         return this.streamStorageType;
     }
 
     /**
      * @param streamStorageType optional storage type used when a missing JetStream stream is provisioned
      */
-    public void setStreamStorageType(StorageType streamStorageType) {
+    public void setStreamStorageType(@Nullable StorageType streamStorageType) {
         this.streamStorageType = streamStorageType;
     }
 
     /**
      * @return optional replica count used when a missing JetStream stream is provisioned
      */
-    public Integer getStreamReplicas() {
+    public @Nullable Integer getStreamReplicas() {
         return this.streamReplicas;
     }
 
     /**
      * @param streamReplicas optional replica count used when a missing JetStream stream is provisioned
      */
-    public void setStreamReplicas(Integer streamReplicas) {
+    public void setStreamReplicas(@Nullable Integer streamReplicas) {
         this.streamReplicas = streamReplicas;
     }
 }

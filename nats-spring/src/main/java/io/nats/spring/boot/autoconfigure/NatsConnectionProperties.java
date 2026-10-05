@@ -18,6 +18,7 @@ package io.nats.spring.boot.autoconfigure;
 
 import io.nats.client.Nats;
 import io.nats.client.Options;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 
 import javax.net.ssl.KeyManager;
@@ -32,6 +33,7 @@ import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.time.Duration;
+import java.util.Objects;
 
 /**
  * Nats Connection Properties.
@@ -56,13 +58,13 @@ public class NatsConnectionProperties {
      */
     private final String defaultTrustStoreProviderAlgorithm = "SunX509";
     /**
-     * URL for the nats server, can be a comma separated list.
+     * URL for the NATS server, can be a comma separated list.
      */
-    private String server;
+    private @Nullable String server;
     /**
      * Connection name, shows up in thread names.
      */
-    private String connectionName;
+    private @Nullable String connectionName;
     /**
      * Maximum reconnect attempts if a connection is lost, after the initial
      * connection.
@@ -116,82 +118,82 @@ public class NatsConnectionProperties {
      * Authentication user name. Requires the password, but not the token, or
      * credentials, or NKey.
      */
-    private String username;
+    private @Nullable String username;
 
     /**
      * Authentication password. Requires the username, but not the token, or
      * credentials, or NKey.
      */
-    private String password;
+    private @Nullable String password;
 
     /**
      * Authentication token, do not use with username/password, or credentials, or
      * NKey.
      */
-    private String token;
+    private @Nullable String token;
 
     /**
      * User credentials file path, do not use with user/password, or token, or NKey.
      * Credentials are used by account enabled servers.
      */
-    private String credentials;
+    private @Nullable String credentials;
 
     /**
      * User jwt, do not use with user/password, or
      * token, or credentials.
      */
-    private String jwt;
+    private @Nullable String jwt;
 
     /**
      * Private key (seed) for NKey authentication, do not use with user/password, or
      * token, or credentials.
      */
-    private String nkey;
+    private @Nullable String nkey;
 
     /**
      * Path to the SSL keystore.
      */
-    private String keyStorePath;
+    private @Nullable String keyStorePath;
 
     /**
      * Password for the SSL keystore.
      */
-    private char[] keyStorePassword;
+    private char @Nullable [] keyStorePassword;
 
     /**
      * Type of SSL keystore, generally the default is used.
      */
-    private String keyStoreType;
+    private @Nullable String keyStoreType;
 
     /**
      * Path the the SSL trust store, for verifying the server.
      */
-    private String trustStorePath;
+    private @Nullable String trustStorePath;
 
     /**
      * Password for the SSL trust store used to verify the server.
      */
-    private char[] trustStorePassword;
+    private char @Nullable [] trustStorePassword;
 
     /**
      * Provider Algorithm for the the SSL key store, for verifying the server.
      */
-    private String keyStoreProvider;
+    private @Nullable String keyStoreProvider;
 
     /**
      * Provider Algorithm for the SSL trust store used to verify the server.
      */
-    private String trustStoreProvider;
+    private @Nullable String trustStoreProvider;
 
     /**
      * TLS Protocol version for the SSL Context. Values: TLSv1.2, TLSv1.3
      */
-    private String tlsProtocol;
+    private @Nullable String tlsProtocol;
 
     /**
      * Type of SSL trust store, generally the default is used.
      */
-    private String trustStoreType;
+    private @Nullable String trustStoreType;
 
     /**
      * Set TLS Handshake First behavior on. Default is off.
@@ -207,33 +209,34 @@ public class NatsConnectionProperties {
      * Default Constructor.
      */
     public NatsConnectionProperties() {
+        // Default constructor for properties
     }
 
     /**
-     * @return url for the nats server
+     * @return URL for the NATS server, or {@code null} when no server was configured
      */
-    public String getServer() {
+    public @Nullable String getServer() {
         return this.server;
     }
 
     /**
-     * @param server url for the nats server
+     * @param server URL for the NATS server, or {@code null} to leave the connection unconfigured
      */
-    public void setServer(String server) {
+    public void setServer(@Nullable String server) {
         this.server = server;
     }
 
     /**
-     * @return a name used for the connection
+     * @return name used for the connection, or {@code null} when no name was configured
      */
-    public String getConnectionName() {
+    public @Nullable String getConnectionName() {
         return this.connectionName;
     }
 
     /**
-     * @param connectionName a name to associate with the connection
+     * @param connectionName name to associate with the connection, or {@code null} to use the client default
      */
-    public void setConnectionName(String connectionName) {
+    public void setConnectionName(@Nullable String connectionName) {
         this.connectionName = connectionName;
     }
 
@@ -259,11 +262,11 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param reconnectWait time to wait between reconnect attempts on the same
-     *                      server url
+     * @param reconnectWait time to wait between reconnect attempts on the same server URL; must not be {@code null}
+     * @throws NullPointerException if {@code reconnectWait} is {@code null}
      */
     public void setReconnectWait(Duration reconnectWait) {
-        this.reconnectWait = reconnectWait;
+        this.reconnectWait = Objects.requireNonNull(reconnectWait, "reconnectWait must not be null");
     }
 
     /**
@@ -274,10 +277,11 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param connectionTimeout maximum time for initial connection
+     * @param connectionTimeout maximum time for initial connection; must not be {@code null}
+     * @throws NullPointerException if {@code connectionTimeout} is {@code null}
      */
     public void setConnectionTimeout(Duration connectionTimeout) {
-        this.connectionTimeout = connectionTimeout;
+        this.connectionTimeout = Objects.requireNonNull(connectionTimeout, "connectionTimeout must not be null");
     }
 
     /**
@@ -288,10 +292,11 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param pingInterval time between server pings
+     * @param pingInterval time between server pings; must not be {@code null}
+     * @throws NullPointerException if {@code pingInterval} is {@code null}
      */
     public void setPingInterval(Duration pingInterval) {
-        this.pingInterval = pingInterval;
+        this.pingInterval = Objects.requireNonNull(pingInterval, "pingInterval must not be null");
     }
 
     /**
@@ -311,72 +316,72 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @return username to use with password for authenticaiton
+     * @return username to use with password authentication, or {@code null} when username authentication is not configured
      */
-    public String getUsername() {
+    public @Nullable String getUsername() {
         return this.username;
     }
 
     /**
-     * @param username to use with password for authenticaiton
+     * @param username username to use with password authentication, or {@code null} to disable username authentication
      */
-    public void setUsername(String username) {
+    public void setUsername(@Nullable String username) {
         this.username = username;
     }
 
     /**
-     * @return password to use with username for authenticaiton
+     * @return password to use with username authentication, or {@code null} when no password was configured
      */
-    public String getPassword() {
+    public @Nullable String getPassword() {
         return this.password;
     }
 
     /**
-     * @param password to use with username for authenticaiton
+     * @param password password to use with username authentication, or {@code null} to leave it unset
      */
-    public void setPassword(String password) {
+    public void setPassword(@Nullable String password) {
         this.password = password;
     }
 
     /**
-     * @return authentication token to use with the server
+     * @return authentication token to use with the server, or {@code null} when token authentication is not configured
      */
-    public String getToken() {
+    public @Nullable String getToken() {
         return this.token;
     }
 
     /**
-     * @param token authentication token to use with the server
+     * @param token authentication token to use with the server, or {@code null} when token authentication is not configured
      */
-    public void setToken(String token) {
+    public void setToken(@Nullable String token) {
         this.token = token;
     }
 
     /**
-     * @return private key (seed) for NKey authentication with the server
+     * @return private key seed for NKey authentication with the server, or {@code null} when NKey authentication is not configured
      */
-    public String getNkey() {
+    public @Nullable String getNkey() {
         return nkey;
     }
 
     /**
-     * @param nkey private key (seed) for NKey authentication with the server
+     * @param nkey private key seed for NKey authentication with the server, or {@code null} to disable NKey authentication
      */
-    public void setNkey(String nkey) {
+    public void setNkey(@Nullable String nkey) {
         this.nkey = nkey;
     }
 
     /**
-     * @return user jwt for authentication with the server
+     * @return user JWT for authentication with the server, or {@code null} when no JWT was configured
      */
-    public String getJwt() {
+    public @Nullable String getJwt() {
         return jwt;
     }
 
     /**
-     * @param jwt user jwt for authentication with the server
+     * @param jwt user jwt for authentication with the server, or {@code null} to leave it unset
      */
-    public void setJwt(String jwt) {
+    public void setJwt(@Nullable String jwt) {
         this.jwt = jwt;
     }
 
@@ -388,10 +393,10 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param inboxPrefix custom prefix to use for request/reply inboxes
+     * @param inboxPrefix custom prefix to use for request/reply inboxes; must not be {@code null}
      */
     public void setInboxPrefix(String inboxPrefix) {
-        this.inboxPrefix = inboxPrefix;
+        this.inboxPrefix = Objects.requireNonNull(inboxPrefix, "inboxPrefix must not be null");
     }
 
     /**
@@ -483,146 +488,143 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @return path to the credentials file to use for authentication with an
-     * account enabled server
+     * @return path to the credentials file to use for authentication, or {@code null} when credentials-file authentication is not configured
      */
-    public String getCredentials() {
+    public @Nullable String getCredentials() {
         return this.credentials;
     }
 
     /**
-     * @param credentials path to the credentials file to use for authentication
-     *                    with an account enabled server
+     * @param credentials path to the credentials file to use for authentication, or {@code null} to disable credentials-file authentication
      */
-    public void setCredentials(String credentials) {
+    public void setCredentials(@Nullable String credentials) {
         this.credentials = credentials;
     }
 
     /**
-     * @return path to the SSL Keystore
+     * @return path to the SSL keystore, or {@code null} when TLS keystore configuration is absent
      */
-    public String getKeyStorePath() {
+    public @Nullable String getKeyStorePath() {
         return this.keyStorePath;
     }
 
     /**
-     * @param keyStorePath file path for the SSL Keystore
+     * @param keyStorePath file path for the SSL keystore, or {@code null} to leave it unset
      */
-    public void setKeyStorePath(String keyStorePath) {
+    public void setKeyStorePath(@Nullable String keyStorePath) {
         this.keyStorePath = keyStorePath;
     }
 
     /**
-     * @return password used to unlock the keystore
+     * @return password used to unlock the keystore, or {@code null} to use an empty password when the keystore is loaded
      */
-    public char[] getKeyStorePassword() {
+    public char @Nullable [] getKeyStorePassword() {
         return this.keyStorePassword;
     }
 
     /**
-     * @param keyStorePassword used to unlock the keystore
+     * @param keyStorePassword password used to unlock the keystore, or {@code null} to use an empty password when the keystore is loaded
+     *
      */
-    public void setKeyStorePassword(char[] keyStorePassword) {
+    public void setKeyStorePassword(char @Nullable [] keyStorePassword) {
         this.keyStorePassword = keyStorePassword;
     }
 
     /**
-     * @return type of keystore to use for SSL connections
+     * @return type of keystore to use for SSL connections, or {@code null} to use the default type
      */
-    public String getKeyStoreType() {
+    public @Nullable String getKeyStoreType() {
         return this.keyStoreType;
     }
 
     /**
-     * @param keyStoreType generally the default, but available for special keystore
-     *                     formats/types
+     * @param keyStoreType keystore type to use for SSL connections, or {@code null} to use the default type
      */
-    public void setKeyStoreType(String keyStoreType) {
+    public void setKeyStoreType(@Nullable String keyStoreType) {
         this.keyStoreType = keyStoreType;
     }
 
     /**
-     * @return file path for the SSL trust store
+     * @return file path for the SSL trust store, or {@code null} when TLS trust store configuration is absent
      */
-    public String getTrustStorePath() {
+    public @Nullable String getTrustStorePath() {
         return this.trustStorePath;
     }
 
     /**
-     * @param trustStorePath file path for the SSL trust store
+     * @param trustStorePath file path for the SSL trust store, or {@code null} to leave it unset
      */
-    public void setTrustStorePath(String trustStorePath) {
+    public void setTrustStorePath(@Nullable String trustStorePath) {
         this.trustStorePath = trustStorePath;
     }
 
     /**
-     * @return password used to unlock the trust store
+     * @return password used to unlock the trust store, or {@code null} to use an empty password when the trust store is loaded
      */
-    public char[] getTrustStorePassword() {
+    public char @Nullable [] getTrustStorePassword() {
         return this.trustStorePassword;
     }
 
     /**
-     * @param trustStorePassword used to unlock the trust store
+     * @param trustStorePassword password used to unlock the trust store, or {@code null} to use an empty password when the trust store is loaded
      */
-    public void setTrustStorePassword(char[] trustStorePassword) {
+    public void setTrustStorePassword(char @Nullable [] trustStorePassword) {
         this.trustStorePassword = trustStorePassword;
     }
 
     /**
-     * @return type of keystore to use for SSL connections
+     * @return type of trust store to use for SSL connections, or {@code null} to use the default type
      */
-    public String getTrustStoreType() {
+    public @Nullable String getTrustStoreType() {
         return this.trustStoreType;
     }
 
     /**
-     * @param trustStoreType generally the default, but available for special trust
-     *                       store formats/types
+     * @param trustStoreType trust store type to use for SSL connections, or {@code null} to use the default type
      */
-    public void setTrustStoreType(String trustStoreType) {
+    public void setTrustStoreType(@Nullable String trustStoreType) {
         this.trustStoreType = trustStoreType;
     }
 
     /**
-     * @return keyStoreProvider of keystore to use for SSL connections
+     * @return keystore provider algorithm to use for SSL connections, or {@code null} to use the default provider
      */
-    public String getKeyStoreProvider() {
+    public @Nullable String getKeyStoreProvider() {
         return keyStoreProvider;
     }
 
     /**
-     * @param keyStoreProvider defaults to SunX509. Alternatives include PKIX.
+     * @param keyStoreProvider keystore provider algorithm to use for SSL connections, or {@code null} to use the default provider
      */
-    public void setKeyStoreProvider(String keyStoreProvider) {
+    public void setKeyStoreProvider(@Nullable String keyStoreProvider) {
         this.keyStoreProvider = keyStoreProvider;
     }
 
     /**
-     * @return trustStoreProvider of keystore to use for SSL connections
+     * @return trust store provider algorithm to use for SSL connections, or {@code null} to use the default provider
      */
-    public String getTrustStoreProvider() {
+    public @Nullable String getTrustStoreProvider() {
         return trustStoreProvider;
     }
 
     /**
-     * @param trustStoreProvider defaults to SunX509. Alternatives include PKIX.
+     * @param trustStoreProvider trust store provider algorithm to use for SSL connections, or {@code null} to use the default provider
      */
-    public void setTrustStoreProvider(String trustStoreProvider) {
+    public void setTrustStoreProvider(@Nullable String trustStoreProvider) {
         this.trustStoreProvider = trustStoreProvider;
     }
 
     /**
-     * @return tlsProtocol to be used in TLS handshake
+     * @return TLS protocol to use in the TLS handshake, or {@code null} to use the client default
      */
-    public String getTlsProtocol() {
+    public @Nullable String getTlsProtocol() {
         return tlsProtocol;
     }
 
     /**
-     * @param tlsProtocol the tls protocol
+     * @param tlsProtocol TLS protocol to use in the TLS handshake, or {@code null} to use the client default
      */
-    public void setTlsProtocol(String tlsProtocol) {
+    public void setTlsProtocol(@Nullable String tlsProtocol) {
         this.tlsProtocol = tlsProtocol;
     }
 
@@ -650,20 +652,19 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param serverURL used for the underlying nats connection, can be a comma
-     *                  separated list
+     * @param serverURL used for the underlying NATS connection, can be a comma separated list, or {@code null} to leave the connection unconfigured
      * @return chainable properties
      */
-    public NatsConnectionProperties server(String serverURL) {
+    public NatsConnectionProperties server(@Nullable String serverURL) {
         this.server = serverURL;
         return this;
     }
 
     /**
-     * @param connectionName used for the underlying nats connection
+     * @param connectionName used for the underlying NATS connection, or {@code null} to use the client default
      * @return chainable properties
      */
-    public NatsConnectionProperties connectionName(String connectionName) {
+    public NatsConnectionProperties connectionName(@Nullable String connectionName) {
         this.connectionName = connectionName;
         return this;
     }
@@ -679,30 +680,32 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param reconnectWait time to wait between reconnect attempts to the same
-     *                      server url
+     * @param reconnectWait time to wait between reconnect attempts to the same server URL; must not be {@code null}
      * @return chainable properties
+     * @throws NullPointerException if {@code reconnectWait} is {@code null}
      */
     public NatsConnectionProperties reconnectWait(Duration reconnectWait) {
-        this.reconnectWait = reconnectWait;
+        this.reconnectWait = Objects.requireNonNull(reconnectWait, "reconnectWait must not be null");
         return this;
     }
 
     /**
-     * @param connectionTimeout maximum time to allow the initial connection to take
+     * @param connectionTimeout maximum time to allow the initial connection to take; must not be {@code null}
      * @return chainable properties
+     * @throws NullPointerException if {@code connectionTimeout} is {@code null}
      */
     public NatsConnectionProperties connectionTimeout(Duration connectionTimeout) {
-        this.connectionTimeout = connectionTimeout;
+        this.connectionTimeout = Objects.requireNonNull(connectionTimeout, "connectionTimeout must not be null");
         return this;
     }
 
     /**
-     * @param pingInterval time between heartbeat pings to the server
+     * @param pingInterval time between heartbeat pings to the server; must not be {@code null}
      * @return chainable properties
+     * @throws NullPointerException if {@code pingInterval} is {@code null}
      */
     public NatsConnectionProperties pingInterval(Duration pingInterval) {
-        this.pingInterval = pingInterval;
+        this.pingInterval = Objects.requireNonNull(pingInterval, "pingInterval must not be null");
         return this;
     }
 
@@ -717,56 +720,57 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param username for authentication
+     * @param username username for authentication, or {@code null} to disable username authentication
      * @return chainable properties
      */
-    public NatsConnectionProperties username(String username) {
+    public NatsConnectionProperties username(@Nullable String username) {
         this.username = username;
         return this;
     }
 
     /**
-     * @param password for authentication
+     * @param password password for authentication, or {@code null} to leave it unset
      * @return chainable properties
      */
-    public NatsConnectionProperties password(String password) {
+    public NatsConnectionProperties password(@Nullable String password) {
         this.password = password;
         return this;
     }
 
     /**
-     * @param token for authentication
+     * @param token token for authentication, or {@code null} to disable token authentication
      * @return chainable properties
      */
-    public NatsConnectionProperties token(String token) {
+    public NatsConnectionProperties token(@Nullable String token) {
         this.token = token;
         return this;
     }
 
     /**
-     * @param nkey private key (seed) for NKey authentication
+     * @param nkey private key seed for NKey authentication, or {@code null} to disable NKey authentication
      * @return chainable properties
      */
-    public NatsConnectionProperties nkey(String nkey) {
+    public NatsConnectionProperties nkey(@Nullable String nkey) {
         this.nkey = nkey;
         return this;
     }
 
     /**
-     * @param jwt user jwt for authentication with the server
+     * @param jwt user JWT for authentication with the server, or {@code null} to leave it unset
      * @return chainable properties
      */
-    public NatsConnectionProperties jwt(String jwt) {
+    public NatsConnectionProperties jwt(@Nullable String jwt) {
         this.jwt = jwt;
         return this;
     }
 
     /**
-     * @param inboxPrefix custom prefix to use for request/reply inboxes
+     * @param inboxPrefix custom prefix to use for request/reply inboxes; must not be {@code null}
      * @return chainable properties
+     * @throws NullPointerException if {@code inboxPrefix} is {@code null}
      */
     public NatsConnectionProperties inboxPrefix(String inboxPrefix) {
-        this.inboxPrefix = inboxPrefix;
+        this.inboxPrefix = Objects.requireNonNull(inboxPrefix, "inboxPrefix must not be null");
         return this;
     }
 
@@ -808,92 +812,91 @@ public class NatsConnectionProperties {
     }
 
     /**
-     * @param credentials file path to the user credentials to use for
-     *                    authentication
+     * @param credentials file path to the user credentials to use for authentication, or {@code null} to disable credentials-file authentication
      * @return chainable properties
      */
-    public NatsConnectionProperties credentials(String credentials) {
+    public NatsConnectionProperties credentials(@Nullable String credentials) {
         this.credentials = credentials;
         return this;
     }
 
     /**
-     * @param keyStorePath file path to SSL Key Store
+     * @param keyStorePath file path to SSL keystore, or {@code null} to leave it unset
      * @return chainable properties
      */
-    public NatsConnectionProperties keyStorePath(String keyStorePath) {
+    public NatsConnectionProperties keyStorePath(@Nullable String keyStorePath) {
         this.keyStorePath = keyStorePath;
         return this;
     }
 
     /**
-     * @param keyStorePassword required to unlock the SSL Key Store
+     * @param keyStorePassword password required to unlock the SSL keystore, or {@code null} to use an empty password when the keystore is loaded
      * @return chainable properties
      */
-    public NatsConnectionProperties keyStorePassword(char[] keyStorePassword) {
+    public NatsConnectionProperties keyStorePassword(char @Nullable [] keyStorePassword) {
         this.keyStorePassword = keyStorePassword;
         return this;
     }
 
     /**
-     * @param trustStorePath file path to SSL Trust Store
+     * @param trustStorePath file path to SSL trust store, or {@code null} to leave it unset
      * @return chainable properties
      */
-    public NatsConnectionProperties trustStorePath(String trustStorePath) {
+    public NatsConnectionProperties trustStorePath(@Nullable String trustStorePath) {
         this.trustStorePath = trustStorePath;
         return this;
     }
 
     /**
-     * @param trustStorePassword required to unlock the SSL Trust Store
+     * @param trustStorePassword password required to unlock the SSL trust store, or {@code null} to use an empty password when the trust store is loaded
      * @return chainable properties
      */
-    public NatsConnectionProperties trustStorePassword(char[] trustStorePassword) {
+    public NatsConnectionProperties trustStorePassword(char @Nullable [] trustStorePassword) {
         setTrustStorePassword(trustStorePassword);
         return this;
     }
 
     /**
-     * @param keyStoreType type/format of the SSL Key Store
+     * @param keyStoreType type/format of the SSL keystore, or {@code null} to use the default type
      * @return chainable properties
      */
-    public NatsConnectionProperties keyStoreType(String keyStoreType) {
+    public NatsConnectionProperties keyStoreType(@Nullable String keyStoreType) {
         this.keyStoreType = keyStoreType;
         return this;
     }
 
     /**
-     * @param keyStoreProvider of the SSL Key Store
+     * @param keyStoreProvider provider algorithm of the SSL keystore, or {@code null} to use the default provider
      * @return chainable properties
      */
-    public NatsConnectionProperties keyStoreProvider(String keyStoreProvider) {
+    public NatsConnectionProperties keyStoreProvider(@Nullable String keyStoreProvider) {
         this.keyStoreProvider = keyStoreProvider;
         return this;
     }
 
     /**
-     * @param trustStoreType type/format of the SSL Trust Store
+     * @param trustStoreType type/format of the SSL trust store, or {@code null} to use the default type
      * @return chainable properties
      */
-    public NatsConnectionProperties trustStoreType(String trustStoreType) {
+    public NatsConnectionProperties trustStoreType(@Nullable String trustStoreType) {
         this.trustStoreType = trustStoreType;
         return this;
     }
 
     /**
-     * @param trustStoreProvider of the SSL Trust Store
+     * @param trustStoreProvider provider algorithm of the SSL trust store, or {@code null} to use the default provider
      * @return chainable properties
      */
-    public NatsConnectionProperties trustStoreProvider(String trustStoreProvider) {
+    public NatsConnectionProperties trustStoreProvider(@Nullable String trustStoreProvider) {
         this.trustStoreProvider = trustStoreProvider;
         return this;
     }
 
     /**
-     * @param tlsProtocol the tls protocol
+     * @param tlsProtocol TLS protocol to use in the TLS handshake, or {@code null} to use the client default
      * @return chainable properties
      */
-    public NatsConnectionProperties tlsProtocol(String tlsProtocol) {
+    public NatsConnectionProperties tlsProtocol(@Nullable String tlsProtocol) {
         this.tlsProtocol = tlsProtocol;
         return this;
     }
@@ -918,14 +921,14 @@ public class NatsConnectionProperties {
         return store;
     }
 
-    protected KeyManager[] createKeyManagers(String path, char[] password, String keyStoreProvider, String keyStoreType)
+    protected KeyManager[] createKeyManagers(String path, char @Nullable [] password, @Nullable String keyStoreProvider, @Nullable String keyStoreType)
             throws IOException, GeneralSecurityException {
 
-        if (keyStoreProvider == null || keyStoreProvider.length() == 0) {
+        if (keyStoreProvider == null || keyStoreProvider.isEmpty()) {
             keyStoreProvider = defaultKeyStoreProviderAlgorithm;
         }
 
-        if (keyStoreType == null || keyStoreType.length() == 0) {
+        if (keyStoreType == null || keyStoreType.isEmpty()) {
             keyStoreType = defaultKeyStoreType;
         }
 
@@ -940,14 +943,14 @@ public class NatsConnectionProperties {
         return factory.getKeyManagers();
     }
 
-    protected TrustManager[] createTrustManagers(String path, char[] password, String trustStoreProvider,
-                                                 String trustStoreType) throws IOException, GeneralSecurityException {
+    protected TrustManager[] createTrustManagers(String path, char @Nullable [] password, @Nullable String trustStoreProvider,
+                                                 @Nullable String trustStoreType) throws IOException, GeneralSecurityException {
 
-        if (trustStoreProvider == null || trustStoreProvider.length() == 0) {
+        if (trustStoreProvider == null || trustStoreProvider.isEmpty()) {
             trustStoreProvider = defaultTrustStoreProviderAlgorithm;
         }
 
-        if (trustStoreType == null || trustStoreType.length() == 0) {
+        if (trustStoreType == null || trustStoreType.isEmpty()) {
             trustStoreType = defaultTrustStoreType;
         }
 
@@ -976,21 +979,23 @@ public class NatsConnectionProperties {
      */
     protected SSLContext createSSLContext() throws IOException, GeneralSecurityException {
 
-        if (this.tlsProtocol == null || this.tlsProtocol.length() == 0) {
+        if (this.tlsProtocol == null || this.tlsProtocol.isEmpty()) {
             this.tlsProtocol = Options.DEFAULT_SSL_PROTOCOL;
         }
 
         SSLContext sslContext = SSLContext.getInstance(this.tlsProtocol);
 
+        String ksPath = Objects.requireNonNull(this.keyStorePath, "keyStorePath must not be null");
         KeyManager[] keyManagers = createKeyManagers(
-                this.keyStorePath,
+                ksPath,
                 this.keyStorePassword,
                 this.keyStoreProvider,
                 this.keyStoreType
         );
 
+        String tsPath = Objects.requireNonNull(this.trustStorePath, "trustStorePath must not be null");
         TrustManager[] trustManagers = createTrustManagers(
-                this.trustStorePath,
+                tsPath,
                 this.trustStorePassword,
                 this.trustStoreProvider,
                 this.trustStoreType
@@ -1052,19 +1057,19 @@ public class NatsConnectionProperties {
             builder = builder.tlsFirst();
         }
 
-        if (this.nkey != null && this.nkey.length() > 0) {
+        if (this.nkey != null && !this.nkey.isEmpty()) {
             char[] jwtChars = this.jwt != null ? this.jwt.toCharArray() : null;
             builder = builder.authHandler(Nats.staticCredentials(jwtChars, this.nkey.toCharArray()));
-        } else if (this.credentials != null && this.credentials.length() > 0) {
+        } else if (this.credentials != null && !this.credentials.isEmpty()) {
             builder = builder.authHandler(Nats.credentials(this.credentials));
-        } else if (this.token != null && this.token.length() > 0) {
+        } else if (this.token != null && !this.token.isEmpty()) {
             builder = builder.token(this.token.toCharArray());
-        } else if (this.username != null && this.username.length() > 0) {
+        } else if (this.username != null && !this.username.isEmpty() && this.password != null) {
             builder = builder.userInfo(this.username.toCharArray(), this.password.toCharArray());
         }
 
-        if (this.keyStorePath != null && this.keyStorePath.length() > 0 && this.trustStorePath != null
-                && this.trustStorePath.length() > 0) {
+        if (this.keyStorePath != null && !this.keyStorePath.isEmpty() && this.trustStorePath != null
+                && !this.trustStorePath.isEmpty()) {
             builder.sslContext(this.createSSLContext());
         }
 
@@ -1097,7 +1102,7 @@ public class NatsConnectionProperties {
                 + "}";
     }
 
-    private String redact(String text) {
+    private String redact(@Nullable String text) {
         return text == null || text.isEmpty() ? "N/A" : "**********";
     }
 
