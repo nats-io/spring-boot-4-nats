@@ -27,8 +27,8 @@ import io.nats.cloud.stream.binder.properties.NatsConsumerProperties;
 import io.nats.cloud.stream.binder.properties.NatsExtendedBindingProperties;
 import io.nats.cloud.stream.binder.properties.NatsProducerProperties;
 import io.nats.spring.boot.autoconfigure.NatsProperties;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.cloud.stream.binder.AbstractMessageChannelBinder;
@@ -54,7 +54,7 @@ import java.util.Objects;
 public class NatsChannelBinder extends
         AbstractMessageChannelBinder<ExtendedConsumerProperties<NatsConsumerProperties>, ExtendedProducerProperties<NatsProducerProperties>, NatsChannelProvisioner>
         implements ExtendedPropertiesBinder<MessageChannel, NatsConsumerProperties, NatsProducerProperties> {
-    private static final Log logger = LogFactory.getLog(NatsChannelBinder.class);
+    private static final Logger logger = LoggerFactory.getLogger(NatsChannelBinder.class);
     private final NatsExtendedBindingProperties bindingProperties;
     private @Nullable NatsBinderConfigurationProperties properties;
     private @Nullable NatsProperties natsProperties;
@@ -92,10 +92,10 @@ public class NatsChannelBinder extends
 
             // Use the binder properties first, if they don't have a server, try the global
             if (bindingServer != null && bindingServer.length() > 0) {
-                logger.info("binder connecting to nats with named properties " + this.properties);
+                logger.info("binder connecting to nats with named properties {}", this.properties);
                 builder = this.properties != null ? this.properties.toOptionsBuilder() : Options.builder();
             } else if (globalServer != null && globalServer.length() > 0) {
-                logger.info("binder connecting to nats with global properties " + this.natsProperties);
+                logger.info("binder connecting to nats with global properties {}", this.natsProperties);
                 builder = this.natsProperties != null ? this.natsProperties.toOptionsBuilder() : Options.builder();
             } else {
                 this.connection = null;
@@ -108,7 +108,7 @@ public class NatsChannelBinder extends
             } else {
                 builder = builder.connectionListener(new ConnectionListener() {
                     public void connectionEvent(Connection conn, Events type) {
-                        logger.info("NATS connection status changed " + type);
+                        logger.info("NATS connection status changed {}", type);
                     }
                 });
             }
@@ -124,24 +124,24 @@ public class NatsChannelBinder extends
 
                     @Override
                     public void exceptionOccurred(@Nullable Connection conn, Exception exp) {
-                        logger.info("NATS connection exception occurred", exp);
+                        logger.warn("NATS connection exception occurred", exp);
                     }
 
                     @Override
                     public void errorOccurred(@Nullable Connection conn, String error) {
-                        logger.info("NATS connection error occurred " + error);
+                        logger.warn("NATS connection error occurred {}", error);
                     }
                 });
             }
 
             this.connection = Nats.connect(builder.build());
         } catch (Exception e) {
-            logger.info("exception connecting binder to NATS", e);
+            logger.error("exception connecting binder to NATS", e);
             this.connection = null;
         }
 
         if (this.connection == null) {
-            logger.info("unable to connect from binder to NATS");
+            logger.warn("unable to connect from binder to NATS");
         }
     }
 
