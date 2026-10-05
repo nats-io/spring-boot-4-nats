@@ -22,8 +22,8 @@ import io.nats.client.Consumer;
 import io.nats.client.ErrorListener;
 import io.nats.client.Nats;
 import io.nats.client.Options;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -47,7 +47,7 @@ import java.security.GeneralSecurityException;
 @ConditionalOnClass({Connection.class})
 @EnableConfigurationProperties(NatsProperties.class)
 public class NatsAutoConfiguration {
-    private static final Log logger = LogFactory.getLog(NatsAutoConfiguration.class);
+    private static final Logger logger = LoggerFactory.getLogger(NatsAutoConfiguration.class);
 
     /**
      * @return NATS connection created with the provided properties. If no server URL is set the method will return null.
@@ -69,7 +69,7 @@ public class NatsAutoConfiguration {
         }
 
         try {
-            logger.info("autoconnecting to NATS with properties - " + properties);
+            logger.info("auto connecting to NATS with properties - {}", properties);
             Options.Builder builder = properties.toOptionsBuilder();
 
             builder = builder.connectionListener(connectionListener);
@@ -78,7 +78,7 @@ public class NatsAutoConfiguration {
 
             return Nats.connect(builder.build());
         } catch (Exception e) {
-            logger.info("error connecting to nats", e);
+            logger.warn("error connecting to NATS", e);
             throw e;
         }
     }
@@ -88,7 +88,7 @@ public class NatsAutoConfiguration {
     public ConnectionListener defaultConnectionListener() {
         return new ConnectionListener() {
             public void connectionEvent(@Nullable Connection conn, Events type) {
-                logger.info("NATS connection status changed " + type);
+                logger.info("NATS connection status changed {}", type);
             }
         };
     }
@@ -104,12 +104,12 @@ public class NatsAutoConfiguration {
 
             @Override
             public void exceptionOccurred(@Nullable Connection conn, Exception exp) {
-                logger.info("NATS connection exception occurred", exp);
+                logger.warn("NATS connection exception occurred", exp);
             }
 
             @Override
             public void errorOccurred(@Nullable Connection conn, String error) {
-                logger.info("NATS connection error occurred " + error);
+                logger.warn("NATS connection error occurred {}", error);
             }
         };
     }
