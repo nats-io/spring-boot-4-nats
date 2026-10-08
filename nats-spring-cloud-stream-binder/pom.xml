@@ -4,6 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>spring-boot-4-nats-cloud-stream-binder</artifactId>
+    <name>NATS Spring Boot 4 Cloud Stream Binder</name>
     <description>Spring Cloud Stream Binder for NATS</description>
     <organization>
         <name>CNCF</name>
