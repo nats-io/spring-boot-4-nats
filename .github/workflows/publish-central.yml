@@ -7,10 +7,6 @@ on:
         required: false
         default: ''
         type: string
-      dry_run:
-        required: false
-        default: false
-        type: boolean
       build_output_timestamp:
         required: true
         type: string
@@ -20,11 +16,6 @@ on:
         description: Workflow run ID containing the build-workspace artifact
         required: true
         type: string
-      dry_run:
-        description: Run packaging-only Central publish validation without uploading
-        required: false
-        default: false
-        type: boolean
       build_output_timestamp:
         description: Reproducible build output timestamp
         required: true
@@ -96,16 +87,12 @@ jobs:
       - name: "🚀 Publish to Maven Central"
         shell: sh
         env:
-          DRY_RUN: ${{ inputs.dry_run }}
           BUILD_OUTPUT_TIMESTAMP: ${{ inputs.build_output_timestamp }}
+          MAVEN_COMMAND: ${{ steps.java_info.outputs.cmd }}
           OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.SIGNING_PASSWORD }}
           PUBLISH_MODULES: nats-spring,nats-spring-boot-starter,nats-spring-cloud-stream-binder
         run: |
           set -eu
-          if [ "${DRY_RUN}" = "true" ]; then
-            ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" -Ppublish -pl "${PUBLISH_MODULES}" -am -DskipTests -Dgpg.skip=true -DskipPublishing=true package
-          else
-            ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" -Ppublish -pl "${PUBLISH_MODULES}" -am -DskipTests deploy
-          fi
+          "${MAVEN_COMMAND}" -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" -Ppublish -pl "${PUBLISH_MODULES}" -am -DskipTests deploy

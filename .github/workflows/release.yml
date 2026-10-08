@@ -2,22 +2,6 @@ name: 🏷️ Manual · Release
 
 on:
   workflow_dispatch:
-    inputs:
-      release_strategy:
-        description: Release strategy to publish
-        required: true
-        default: patch
-        type: choice
-        options:
-          - rc
-          - patch
-          - minor
-          - major
-      dry_run:
-        description: Rehearse release publishing while skipping Maven Central upload
-        required: false
-        default: false
-        type: boolean
 
 permissions: {}
 
@@ -27,7 +11,6 @@ concurrency:
 
 jobs:
   validate-dispatch-ref:
-    if: inputs.dry_run != true
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -47,13 +30,13 @@ jobs:
   build:
     needs:
       - validate-dispatch-ref
-    if: ${{ always() && (needs.validate-dispatch-ref.result == 'success' || needs.validate-dispatch-ref.result == 'skipped') }}
+    if: needs.validate-dispatch-ref.result == 'success'
     permissions:
       contents: read
     uses: ./.github/workflows/build-common.yml
     with:
       ref: ${{ github.sha }}
-      release_strategy: ${{ inputs.release_strategy }}
+      release_mode: release
     secrets: inherit
 
   publish-central:
@@ -66,7 +49,6 @@ jobs:
       deployments: write
     uses: ./.github/workflows/publish-central.yml
     with:
-      dry_run: ${{ inputs.dry_run }}
       build_output_timestamp: ${{ needs.build.outputs.build_output_timestamp }}
     secrets: inherit
 
@@ -81,7 +63,6 @@ jobs:
       packages: write
     uses: ./.github/workflows/publish-github-packages.yml
     with:
-      dry_run: ${{ inputs.dry_run }}
       build_output_timestamp: ${{ needs.build.outputs.build_output_timestamp }}
     secrets: inherit
 
@@ -90,7 +71,7 @@ jobs:
       - build
       - publish-central
       - publish-github-packages
-    if: ${{ always() && !cancelled() && needs.build.outputs.should_create_release == 'true' && needs.build.result == 'success' && needs.publish-central.result == 'success' && needs.publish-github-packages.result == 'success' }}
+    if: ${{ always() && !cancelled() && needs.build.result == 'success' && needs.publish-central.result == 'success' && needs.publish-github-packages.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -99,7 +80,6 @@ jobs:
       - name: "🧑‍💻 Checkout [${{ needs.build.outputs.commit_sha }}]"
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          fetch-depth: 0
           ref: ${{ needs.build.outputs.commit_sha }}
 
       - name: "📥 Download Build Artifact"
@@ -134,7 +114,6 @@ jobs:
       - name: "🏷️ Create GitHub Release [${{ needs.build.outputs.resolved_version }}]"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_KIND: ${{ needs.build.outputs.release_kind }}
           RELEASE_VERSION: ${{ needs.build.outputs.resolved_version }}
           TARGET_SHA: ${{ needs.build.outputs.commit_sha }}
         shell: sh
@@ -143,16 +122,9 @@ jobs:
           if gh release view "${RELEASE_VERSION}" >/dev/null 2>&1; then
             echo "GitHub release already exists for ${RELEASE_VERSION}"
           else
-            if [ "${RELEASE_KIND}" = "prerelease" ]; then
-              gh release create "${RELEASE_VERSION}" \
-                --target "${TARGET_SHA}" \
-                --generate-notes \
-                --prerelease
-            else
-              gh release create "${RELEASE_VERSION}" \
-                --target "${TARGET_SHA}" \
-                --generate-notes
-            fi
+            gh release create "${RELEASE_VERSION}" \
+              --target "${TARGET_SHA}" \
+              --generate-notes
           fi
 
           gh release upload "${RELEASE_VERSION}" "${RUNNER_TEMP}/release-assets"/* --clobber
