@@ -101,15 +101,15 @@ jobs:
           rm -rf "${assets_dir}"
           mkdir -p "${assets_dir}"
 
-          cp pom.xml "${assets_dir}/spring-boot-4-nats-parent-${RELEASE_VERSION}.pom"
-          cp nats-spring-boot-starter/pom.xml "${assets_dir}/spring-boot-4-starter-nats-${RELEASE_VERSION}.pom"
+          cp "pom.xml" "${assets_dir}/spring-boot-4-nats-parent-${RELEASE_VERSION}.pom"
+          cp "nats-spring-boot-starter/pom.xml" "${assets_dir}/spring-boot-4-starter-nats-${RELEASE_VERSION}.pom"
 
-          cp nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}.jar "${assets_dir}/"
-          cp nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}-sources.jar "${assets_dir}/"
-          cp nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}-javadoc.jar "${assets_dir}/"
-          cp nats-spring-cloud-stream-binder/target/spring-boot-4-nats-cloud-stream-binder-${RELEASE_VERSION}.jar "${assets_dir}/"
-          cp nats-spring-cloud-stream-binder/target/spring-boot-4-nats-cloud-stream-binder-${RELEASE_VERSION}-sources.jar "${assets_dir}/"
-          cp nats-spring-cloud-stream-binder/target/spring-boot-4-nats-cloud-stream-binder-${RELEASE_VERSION}-javadoc.jar "${assets_dir}/"
+          cp "nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}.jar" "${assets_dir}/"
+          cp "nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}-sources.jar" "${assets_dir}/"
+          cp "nats-spring/target/spring-boot-4-nats-${RELEASE_VERSION}-javadoc.jar" "${assets_dir}/"
+          cp "nats-spring-cloud-stream-binder/target/spring-boot-4-nats-cloud-stream-binder-${RELEASE_VERSION}.jar" "${assets_dir}/"
+          cp "nats-spring-cloud-stream-binder/target/spring-boot-4-nats-cloud-stream-binder-${RELEASE_VERSION}-sources.jar" "${assets_dir}/"
+          cp "nats-spring-cloud-stream-binder/target/spring-boot-4-nats-cloud-stream-binder-${RELEASE_VERSION}-javadoc.jar" "${assets_dir}/"
 
       - name: "🏷️ Create GitHub Release [${{ needs.build.outputs.resolved_version }}]"
         env:
@@ -127,4 +127,5 @@ jobs:
               --generate-notes
           fi
 
-          gh release upload "${RELEASE_VERSION}" "${RUNNER_TEMP}/release-assets"/* --clobber
+          set -- "${RUNNER_TEMP}/release-assets/"*
+          gh release upload "${RELEASE_VERSION}" "$@" --clobber
