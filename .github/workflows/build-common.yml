@@ -7,26 +7,15 @@ on:
         required: false
         default: ''
         type: string
-      release_strategy:
+      release_mode:
+        description: Build, snapshot publish, or stable release.
         required: false
-        default: none
+        default: build
         type: string
     outputs:
       resolved_version:
         description: Resolved project version for this run
         value: ${{ jobs.build.outputs.resolved_version }}
-      release_kind:
-        description: Release kind [none, snapshot, prerelease, release]
-        value: ${{ jobs.build.outputs.release_kind }}
-      should_publish:
-        description: Whether publish jobs should run
-        value: ${{ jobs.build.outputs.should_publish }}
-      should_tag:
-        description: Whether a git tag should be created
-        value: ${{ jobs.build.outputs.should_tag }}
-      should_create_release:
-        description: Whether a GitHub release should be created
-        value: ${{ jobs.build.outputs.should_create_release }}
       commit_sha:
         description: Resolved commit SHA for this build
         value: ${{ jobs.build.outputs.commit_sha }}
@@ -40,18 +29,15 @@ on:
         required: false
         default: ''
         type: string
-      release_strategy:
-        description: Release strategy to apply
+      release_mode:
+        description: Release mode
         required: true
-        default: none
+        default: build
         type: choice
         options:
-          - none
+          - build
           - snapshot
-          - rc
-          - patch
-          - minor
-          - major
+          - release
 
 permissions: {}
 
@@ -63,17 +49,12 @@ jobs:
       contents: read
     outputs:
       resolved_version: ${{ steps.resolve_version.outputs.resolved_version }}
-      release_kind: ${{ steps.resolve_version.outputs.release_kind }}
-      should_publish: ${{ steps.resolve_version.outputs.should_publish }}
-      should_tag: ${{ steps.resolve_version.outputs.should_tag }}
-      should_create_release: ${{ steps.resolve_version.outputs.should_create_release }}
       commit_sha: ${{ steps.commit_info.outputs.commit_sha }}
       build_output_timestamp: ${{ steps.commit_info.outputs.build_output_timestamp }}
     steps:
       - name: "🧑‍💻 Checkout [${{ inputs.ref }}]"
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
-          fetch-depth: 0
           ref: ${{ inputs.ref || github.sha }}
 
       - name: "🧾 Read Commit Info"
@@ -88,139 +69,36 @@ jobs:
         id: java_info
         uses: YunaBraska/java-info-action@11a434ffbf6bb3357363d1933be71a4076a90a6b # 3
 
-      - name: "🏷️ Read Version Source"
-        id: version_source
-        shell: sh
-        run: |
-          set -eu
-          latest_tag=$(python3 -c '
-          import re
-          import subprocess
-
-          semver_pattern = re.compile(
-              r"^([0-9]+)\.([0-9]+)\.([0-9]+)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$"
-          )
-
-          def parse_identifier(identifier):
-              return (0, int(identifier)) if identifier.isdigit() else (1, identifier)
-
-          def parse_prerelease(prerelease):
-              if prerelease is None:
-                  return (1, ())
-              return (0, tuple(parse_identifier(part) for part in prerelease.split(".")))
-
-          best_tag = None
-          best_key = None
-          tags = subprocess.check_output(["git", "tag", "--merged", "HEAD"], text=True).splitlines()
-
-          for tag in tags:
-              match = semver_pattern.fullmatch(tag.strip())
-              if match is None:
-                  continue
-              major, minor, patch, prerelease, _build = match.groups()
-              key = (
-                  int(major),
-                  int(minor),
-                  int(patch),
-                  parse_prerelease(prerelease),
-                  tag,
-              )
-              if best_key is None or key > best_key:
-                  best_key = key
-                  best_tag = tag
-
-          print(best_tag or "")
-          ')
-          if [ -z "${latest_tag}" ]; then
-            printf 'latest_tag=%s\n' '0.0.0' >> "${GITHUB_OUTPUT}"
-            printf 'display_tag=%s\n' '0.0.0 (bootstrap)' >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-          printf 'latest_tag=%s\n' "${latest_tag}" >> "${GITHUB_OUTPUT}"
-          printf 'display_tag=%s\n' "${latest_tag}" >> "${GITHUB_OUTPUT}"
-
-      - name: "🔢 Read Semver Info [${{ steps.version_source.outputs.display_tag }}]"
-        id: semver_info
-        uses: YunaBraska/semver-info-action@180ebf79b3c81785c50cf1f198ee236fc5591504 # 3
-        with:
-          semver-a: ${{ steps.version_source.outputs.latest_tag }}
-
-      - name: "🧮 Resolve Version [${{ inputs.release_strategy }}]"
+      - name: "🧮 Resolve Version [${{ inputs.release_mode }}]"
         id: resolve_version
-        env:
-          LATEST_TAG: ${{ steps.version_source.outputs.latest_tag }}
-          NEXT_MAJOR: ${{ steps.semver_info.outputs.next_major }}
-          NEXT_MINOR: ${{ steps.semver_info.outputs.next_minor }}
-          NEXT_PATCH: ${{ steps.semver_info.outputs.next_patch }}
-          NEXT_RC: ${{ steps.semver_info.outputs.next_rc }}
-          NEXT_SNAPSHOT: ${{ steps.semver_info.outputs.next_snapshot }}
-          RELEASE_STRATEGY: ${{ inputs.release_strategy }}
         shell: sh
         run: |
           set -eu
+          year=$(date -u '+%Y')
+          month=$(date -u '+%m' | sed 's/^0//')
+          day=$(date -u '+%d' | sed 's/^0//')
+          version_date="${year}.${month}.${day}"
 
-          release_strategy=${RELEASE_STRATEGY}
-          latest_tag=${LATEST_TAG}
-
-          case "${release_strategy}" in
-            none)
-              resolved_version=${NEXT_SNAPSHOT}
-              release_kind=none
-              should_publish=false
-              should_tag=false
-              should_create_release=false
+          case "${{ inputs.release_mode }}" in
+            build)
+              resolved_version="${version_date}-SNAPSHOT"
               ;;
             snapshot)
-              resolved_version=${NEXT_SNAPSHOT}
-              release_kind=snapshot
-              should_publish=true
-              should_tag=false
-              should_create_release=false
+              resolved_version="${version_date}-SNAPSHOT"
               ;;
-            rc)
-              resolved_version=${NEXT_RC}
-              release_kind=prerelease
-              should_publish=true
-              should_tag=true
-              should_create_release=true
-              ;;
-            patch)
-              resolved_version=${NEXT_PATCH}
-              release_kind=release
-              should_publish=true
-              should_tag=true
-              should_create_release=true
-              ;;
-            minor)
-              resolved_version=${NEXT_MINOR}
-              release_kind=release
-              should_publish=true
-              should_tag=true
-              should_create_release=true
-              ;;
-            major)
-              resolved_version=${NEXT_MAJOR}
-              release_kind=release
-              should_publish=true
-              should_tag=true
-              should_create_release=true
+            release)
+              resolved_version="${version_date}"
               ;;
             *)
-              echo "Unsupported release_strategy: ${release_strategy}" >&2
+              echo "Unsupported release mode: ${{ inputs.release_mode }}" >&2
               exit 1
               ;;
           esac
 
-          if [ -z "${resolved_version}" ]; then
-            echo "Unable to resolve version from latest tag ${latest_tag} with strategy ${release_strategy}" >&2
-            exit 1
-          fi
-
+          printf 'release_mode=%s\n' "${{ inputs.release_mode }}"
+          printf 'version_date=%s\n' "${version_date}"
+          printf 'resolved_version=%s\n' "${resolved_version}"
           printf 'resolved_version=%s\n' "${resolved_version}" >> "${GITHUB_OUTPUT}"
-          printf 'release_kind=%s\n' "${release_kind}" >> "${GITHUB_OUTPUT}"
-          printf 'should_publish=%s\n' "${should_publish}" >> "${GITHUB_OUTPUT}"
-          printf 'should_tag=%s\n' "${should_tag}" >> "${GITHUB_OUTPUT}"
-          printf 'should_create_release=%s\n' "${should_create_release}" >> "${GITHUB_OUTPUT}"
 
       - name: "☕ Setup Java [${{ steps.java_info.outputs.java_version }}]"
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
@@ -230,26 +108,14 @@ jobs:
           cache: maven
 
       - name: "🏷️ Set Project Version [${{ steps.resolve_version.outputs.resolved_version }}]"
-        env:
-          RELEASE_VERSION: ${{ steps.resolve_version.outputs.resolved_version }}
-          BUILD_OUTPUT_TIMESTAMP: ${{ steps.commit_info.outputs.build_output_timestamp }}
-        run: ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
+        run: ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${{ steps.commit_info.outputs.build_output_timestamp }}" versions:set -DnewVersion="${{ steps.resolve_version.outputs.resolved_version }}" -DgenerateBackupPoms=false
 
       - name: "🧪 Build and Verify"
-        env:
-          SHOULD_PUBLISH: ${{ steps.resolve_version.outputs.should_publish }}
-          BUILD_OUTPUT_TIMESTAMP: ${{ steps.commit_info.outputs.build_output_timestamp }}
         shell: sh
-        run: |
-          set -eu
-          if [ "${SHOULD_PUBLISH}" = "true" ]; then
-            ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" verify -Dmaven.javadoc.skip=false
-          else
-            ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" verify
-          fi
+        run: ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${{ steps.commit_info.outputs.build_output_timestamp }}" verify
 
       - name: "📦 Upload Build Artifact"
-        if: steps.resolve_version.outputs.should_publish == 'true'
+        if: inputs.release_mode != 'build'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: build-workspace

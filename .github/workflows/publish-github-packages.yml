@@ -7,10 +7,6 @@ on:
         required: false
         default: ''
         type: string
-      dry_run:
-        required: false
-        default: false
-        type: boolean
       build_output_timestamp:
         required: true
         type: string
@@ -20,11 +16,6 @@ on:
         description: Workflow run ID containing the build-workspace artifact
         required: true
         type: string
-      dry_run:
-        description: Reserved for release-flow rehearsal toggles
-        required: false
-        default: false
-        type: boolean
       build_output_timestamp:
         description: Reproducible build output timestamp
         required: true

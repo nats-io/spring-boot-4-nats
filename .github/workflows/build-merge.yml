@@ -6,12 +6,6 @@ on:
       - main
       - master
   workflow_dispatch:
-    inputs:
-      dry_run:
-        description: Rehearse snapshot publishing while skipping Maven Central upload
-        required: false
-        default: false
-        type: boolean
 
 permissions: {}
 
@@ -21,7 +15,7 @@ concurrency:
 
 jobs:
   validate-dispatch-ref:
-    if: github.event_name == 'workflow_dispatch' && inputs.dry_run != true
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -47,7 +41,7 @@ jobs:
     uses: ./.github/workflows/build-common.yml
     with:
       ref: ${{ github.sha }}
-      release_strategy: snapshot
+      release_mode: snapshot
     secrets: inherit
 
   publish-central:
@@ -60,7 +54,6 @@ jobs:
       deployments: write
     uses: ./.github/workflows/publish-central.yml
     with:
-      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
       build_output_timestamp: ${{ needs.build.outputs.build_output_timestamp }}
     secrets: inherit
 
@@ -75,6 +68,5 @@ jobs:
       packages: write
     uses: ./.github/workflows/publish-github-packages.yml
     with:
-      dry_run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
       build_output_timestamp: ${{ needs.build.outputs.build_output_timestamp }}
     secrets: inherit
