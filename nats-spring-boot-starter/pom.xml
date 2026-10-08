@@ -4,6 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <artifactId>spring-boot-4-starter-nats</artifactId>
+    <name>NATS Spring Boot 4 Starter</name>
     <description>NATS Starter for Spring</description>
     <packaging>pom</packaging>
 
