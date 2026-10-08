@@ -2,12 +2,10 @@
 
 # NATS Spring Support
 
-**Current Release**: 0.6.2+3.5 &nbsp; **Current Snapshot**: 0.6.3+3.5-SNAPSHOT
-
-Please note the version number is a combination of Semver and the Spring Boot Version, `<major.minor.patch>-<sbMajor.sbMinor>`
+New releases use UTC date versions, YYYY.M.D. Snapshots use YYYY.M.D-SNAPSHOT.
 
 [![License][License-Image]][License-Url]
-[![Build Status](https://travis-ci.org/nats-io/spring-nats.svg?branch=master)](http://travis-ci.org/nats-io/spring-nats?branch=master)
+[![CI](https://github.com/nats-io/spring-boot-4-nats/actions/workflows/build-pr.yml/badge.svg?branch=main)](https://github.com/nats-io/spring-boot-4-nats/actions/workflows/build-pr.yml)
 
 # Table of Contents
 
@@ -93,7 +91,7 @@ To include the starter, add the following dependency to your pom.xml:
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>spring-boot-4-starter-nats</artifactId>
-    <version>major.minor.patch[-SNAPSHOT]</version>
+    <version>YYYY.M.D[-SNAPSHOT]</version>
 </dependency>
 ```
 
@@ -110,7 +108,7 @@ To depend on the autoconfigure module, add it as a dependency in your pom.xml:
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>spring-boot-4-nats</artifactId>
-    <version>major.minor.patch[-SNAPSHOT]</version>
+    <version>YYYY.M.D[-SNAPSHOT]</version>
 </dependency>
 ```
 
@@ -145,7 +143,7 @@ and include a dependency on the library:
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>spring-boot-4-nats-cloud-stream-binder</artifactId>
-    <version>major.minor.patch[-SNAPSHOT]</version>
+    <version>YYYY.M.D[-SNAPSHOT]</version>
 </dependency>
 ```
 
@@ -305,34 +303,6 @@ This project is built with maven. The `mvnw` helper is included in the root fold
 Run all tests with `./mvnw clean verify` using Java 17 or newer. The tests use `berlin.yuna:nats-server-junit` to download and start native NATS servers automatically, including on Apple Silicon macOS. Docker and a separately installed NATS server are not required. The first run needs access to GitHub release downloads. Maven test runs cache the binary under `spring-nats-test` in the system temporary directory, separated by the library-selected NATS version and platform.
 
 Internally there are multiple pom files, one parent for the project, one parent for the samples, one for the autoconfigure code, one for the binder, and one each for the samples. When built, each will have its own artifacts.
-
-Signing and deploying requires that you set up your settings.xml file for maven:
-
-```xml
-<settings>
-    <servers>
-        <server>
-            <id>ossrh</id>
-            <username>xxx</username>
-            <password>xxxxx</password>
-        </server>
-    </servers>
-    <profiles>
-        <profile>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <properties>
-                <gpg.keyid>xxx</gpg.keyid>
-                <gpg.passphrase>xxxxx</gpg.passphrase>
-                <gpg.secretkeyring>xxxxx</gpg.secretkeyring>
-            </properties>
-        </profile>
-    </profiles>
-</settings>
-```
-
-**Sonatype will accept and close a non-staging repository, but you must manually release it.**
 
 ### Adding New Configuration Properties
 
