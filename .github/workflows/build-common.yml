@@ -71,6 +71,8 @@ jobs:
 
       - name: "🧮 Resolve Version [${{ inputs.release_mode }}]"
         id: resolve_version
+        env:
+          RELEASE_MODE: ${{ inputs.release_mode }}
         shell: sh
         run: |
           set -eu
@@ -79,7 +81,7 @@ jobs:
           day=$(date -u '+%d' | sed 's/^0//')
           version_date="${year}.${month}.${day}"
 
-          case "${{ inputs.release_mode }}" in
+          case "${RELEASE_MODE}" in
             build)
               resolved_version="${version_date}-SNAPSHOT"
               ;;
@@ -90,12 +92,12 @@ jobs:
               resolved_version="${version_date}"
               ;;
             *)
-              echo "Unsupported release mode: ${{ inputs.release_mode }}" >&2
+              echo "Unsupported release mode: ${RELEASE_MODE}" >&2
               exit 1
               ;;
           esac
 
-          printf 'release_mode=%s\n' "${{ inputs.release_mode }}"
+          printf 'release_mode=%s\n' "${RELEASE_MODE}"
           printf 'version_date=%s\n' "${version_date}"
           printf 'resolved_version=%s\n' "${resolved_version}"
           printf 'resolved_version=%s\n' "${resolved_version}" >> "${GITHUB_OUTPUT}"
@@ -108,11 +110,23 @@ jobs:
           cache: maven
 
       - name: "🏷️ Set Project Version [${{ steps.resolve_version.outputs.resolved_version }}]"
-        run: ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${{ steps.commit_info.outputs.build_output_timestamp }}" versions:set -DnewVersion="${{ steps.resolve_version.outputs.resolved_version }}" -DgenerateBackupPoms=false
+        shell: sh
+        env:
+          BUILD_OUTPUT_TIMESTAMP: ${{ steps.commit_info.outputs.build_output_timestamp }}
+          MAVEN_COMMAND: ${{ steps.java_info.outputs.cmd }}
+          RELEASE_VERSION: ${{ steps.resolve_version.outputs.resolved_version }}
+        run: |
+          set -eu
+          "${MAVEN_COMMAND}" -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" versions:set -DnewVersion="${RELEASE_VERSION}" -DgenerateBackupPoms=false
 
       - name: "🧪 Build and Verify"
         shell: sh
-        run: ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${{ steps.commit_info.outputs.build_output_timestamp }}" verify
+        env:
+          BUILD_OUTPUT_TIMESTAMP: ${{ steps.commit_info.outputs.build_output_timestamp }}
+          MAVEN_COMMAND: ${{ steps.java_info.outputs.cmd }}
+        run: |
+          set -eu
+          "${MAVEN_COMMAND}" -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" verify
 
       - name: "📦 Upload Build Artifact"
         if: inputs.release_mode != 'build'

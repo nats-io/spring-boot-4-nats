@@ -72,8 +72,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_PACKAGES_REPOSITORY: ${{ github.repository }}
           BUILD_OUTPUT_TIMESTAMP: ${{ inputs.build_output_timestamp }}
+          MAVEN_COMMAND: ${{ steps.java_info.outputs.cmd }}
           PUBLISH_MODULES: nats-spring,nats-spring-boot-starter,nats-spring-cloud-stream-binder
         run: |
           set -eu
           repository="github::https://maven.pkg.github.com/${GITHUB_PACKAGES_REPOSITORY}"
-          ${{ steps.java_info.outputs.cmd }} -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" -pl "${PUBLISH_MODULES}" -am -DskipTests -Dmaven.javadoc.skip=false -DaltDeploymentRepository="${repository}" deploy
+          "${MAVEN_COMMAND}" -B -Dproject.build.outputTimestamp="${BUILD_OUTPUT_TIMESTAMP}" -pl "${PUBLISH_MODULES}" -am -DskipTests -Dmaven.javadoc.skip=false -DaltDeploymentRepository="${repository}" deploy
