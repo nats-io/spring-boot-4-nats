@@ -1,8 +1,10 @@
 ![NATS](images/large-logo.png)
 
-# NATS Spring Support
+# NATS Spring Support for Spring Boot 4
 
-New releases use UTC date versions, YYYY.M.D. Snapshots use YYYY.M.D-SNAPSHOT.
+This repository supports Spring Boot 4. For Spring Boot 3, use [spring-nats](https://github.com/nats-io/spring-nats).
+
+Releases use UTC date versions, YYYY.M.D. Snapshots use YYYY.M.D-SNAPSHOT.
 
 [![License][License-Image]][License-Url]
 [![CI](https://github.com/nats-io/spring-boot-4-nats/actions/workflows/build-pr.yml/badge.svg?branch=main)](https://github.com/nats-io/spring-boot-4-nats/actions/workflows/build-pr.yml)
@@ -31,9 +33,9 @@ This repository contains three published artifacts:
 
 The `nats-spring-samples` module is included to <a href="#samples">demonstrate</a> how those artifacts can be used.
 
-## Version Notes
+## Configuration and Versions
 
-As of version 0.3.x the properties used to [configure](#configure) can be in YAML or properties if you pass in the NATS properties externally. If you want the application file to contain connection info it should be a properties file and not YAML. In other words:
+Configuration can use YAML or properties when NATS properties are supplied externally. If the application file contains NATS connection information, use a properties file. For example:
 
 ```properties
 spring.cloud.stream.bindings.input.destination=dataIn
@@ -42,9 +44,9 @@ spring.cloud.stream.binders.nats1.type=nats
 spring.cloud.stream.binders.nats1.environment.nats.spring.cloud.stream.binder.server=nats://localhost:4222
 ```
 
-it works while the YAML equivalent will not.
+The YAML equivalent does not support this configuration.
 
-Snapshots are hosted on `central.sonatype.org`, to access these within maven update your settings to include:
+Snapshot artifacts are hosted on `central.sonatype.org`. Add this repository when consuming a snapshot:
 
 ```xml
 <profiles>
@@ -69,23 +71,13 @@ Snapshots are hosted on `central.sonatype.org`, to access these within maven upd
 </profiles>
 ```
 
-The released version should be available at maven central. If the release has not propagated yet, it can be found at 
-
-```xml
-<repository>
-    <id>central-sonatype</id>
-    <name>central-sonatype</name>
-    <url>https://repo1.maven.org/maven2/</url>
-</repository>
-```
-
-and ultimately at maven central.
+Release artifacts are available from [Maven Central](https://central.sonatype.com/search?q=g:io.nats).
 
 ## Using the Starter <a name="starter"></a>
 
 A spring boot starter is provided that will bring in the autoconfigure module.
 
-To include the starter, add the following dependency to your pom.xml:
+Use the version published in Maven Central. To include the starter, add the following dependency to your pom.xml:
 
 ```xml
 <dependency>
@@ -97,14 +89,9 @@ To include the starter, add the following dependency to your pom.xml:
 
 ## Using the NATS Modules <a name="using"></a>
 
-To depend on the autoconfigure module, add it as a dependency in your pom.xml:
+To depend on the autoconfigure module, add it as a dependency in your pom.xml. It brings in the NATS Java client.
 
 ```xml
-<dependency>
-    <groupId>io.nats</groupId>
-    <artifactId>jnats</artifactId>
-    <version>2.21.1</version>
-</dependency>
 <dependency>
     <groupId>io.nats</groupId>
     <artifactId>spring-boot-4-nats</artifactId>
@@ -267,9 +254,9 @@ This repo contains two types of samples. First, there is a [stand-alone demo](de
 You can exercise the samples using the `nats-sub` and `nats-pub` executables for the client library. For example, to try out the listener:
 
 ```bash
-% java -jar nats-spring-samples/listener-sample/target/listener-sample-0.6.1+3.1.jar --nats.spring.server="nats://localhost:4222"
-...
-2019-06-24 15:36:43.690  INFO 36282 --- [         nats:3] o.s.cloud.stream.binder.nats.Listener    : received message hello
+./mvnw -pl nats-spring-samples/listener-sample -am package
+sample_jar="$(find nats-spring-samples/listener-sample/target -type f -name '*.jar' ! -name '*-javadoc.jar' ! -name '*-sources.jar' | head -n 1)"
+java -jar "${sample_jar}" --nats.spring.server="nats://localhost:4222"
 ```
 
 ```bash
@@ -279,9 +266,9 @@ You can exercise the samples using the `nats-sub` and `nats-pub` executables for
 For the multi-binder, try:
 
 ```bash
-% java -jar nats-spring-samples/processor-sample/target/processor-sample-0.6.1+3.1.jar --nats.spring.server="nats://localhost:4222"
-...
-
+./mvnw -pl nats-spring-samples/processor-sample -am package
+sample_jar="$(find nats-spring-samples/processor-sample/target -type f -name '*.jar' ! -name '*-javadoc.jar' ! -name '*-sources.jar' | head -n 1)"
+java -jar "${sample_jar}" --nats.spring.server="nats://localhost:4222"
 ```
 
 ```bash
